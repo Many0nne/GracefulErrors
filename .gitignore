@@ -1,0 +1,12 @@
+node_modules/
+dist/
+impl/
+.claude/
+
+# Environment variables (local only)
+.env
+.env.local
+.env.*.local
+
+coverage/
+logs/

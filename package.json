@@ -1,0 +1,80 @@
+{
+  "name": "gracefulerrors",
+  "version": "0.1.0",
+  "description": "Transform technical errors into consistent, user-friendly experiences",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.mjs",
+      "require": "./dist/react.cjs"
+    },
+    "./sonner": {
+      "types": "./dist/adapters/sonner.d.ts",
+      "import": "./dist/adapters/sonner.mjs",
+      "require": "./dist/adapters/sonner.cjs"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "import": "./dist/internal.mjs",
+      "require": "./dist/internal.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pretest:types": "npm run build",
+    "test:types": "tsd",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18",
+    "sonner": ">=1"
+  },
+  "peerDependenciesMeta": {
+    "sonner": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "tsd": {
+    "directory": "src/__tests__"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.0.0",
+    "@types/node": "^25.5.2",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "jsdom": "^24.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "sonner": "^1.0.0",
+    "tsd": "^0.31.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}
