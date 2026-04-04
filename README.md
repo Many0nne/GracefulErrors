@@ -1,6 +1,6 @@
 # gracefulerrors
 
-gracefulerrors is a TypeScript library for turning technical errors into consistent user-facing experiences. It provides a framework-agnostic core engine, a React SDK, and a Sonner adapter.
+gracefulerrors is a TypeScript library for turning technical errors into consistent user-facing experiences. It provides a framework-agnostic core engine, React and Vue SDKs, and a Sonner adapter.
 
 ## Features
 
@@ -8,7 +8,7 @@ gracefulerrors is a TypeScript library for turning technical errors into consist
 - Route errors to `toast`, `modal`, `inline`, or `silent`
 - Register typed error codes with per-code UI behavior
 - Dedupe, queue, and limit concurrent notifications
-- Integrate with React through a provider, hooks, and an error boundary
+- Integrate with React or Vue through framework-native APIs and error boundaries
 - Render with Sonner or a custom adapter
 
 ## Installation
