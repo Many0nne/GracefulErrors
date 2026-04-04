@@ -24,6 +24,11 @@
       "types": "./dist/internal.d.ts",
       "import": "./dist/internal.mjs",
       "require": "./dist/internal.cjs"
+    },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "import": "./dist/vue.mjs",
+      "require": "./dist/vue.cjs"
     }
   },
   "main": "./dist/index.cjs",
@@ -45,7 +50,8 @@
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18",
-    "sonner": ">=1"
+    "sonner": ">=1",
+    "vue": ">=3"
   },
   "peerDependenciesMeta": {
     "sonner": {
@@ -55,6 +61,9 @@
       "optional": true
     },
     "react-dom": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     }
   },
@@ -68,6 +77,7 @@
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "@vitest/coverage-v8": "^1.0.0",
+    "@vue/test-utils": "^2.4.6",
     "jsdom": "^24.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
@@ -75,6 +85,7 @@
     "tsd": "^0.31.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
-    "vitest": "^1.0.0"
+    "vitest": "^1.0.0",
+    "vue": "^3.5.32"
   }
 }

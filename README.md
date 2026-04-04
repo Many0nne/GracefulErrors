@@ -17,10 +17,16 @@ gracefulerrors is a TypeScript library for turning technical errors into consist
 npm install gracefulerrors
 ```
 
-If you use the React SDK or the Sonner adapter, install the matching peer dependencies in your app:
+If you use the React SDK or the Sonner adapter, install the matching peer dependencies:
 
 ```bash
 npm install react react-dom sonner
+```
+
+If you use the Vue SDK:
+
+```bash
+npm install vue
 ```
 
 ## Quick Start
@@ -120,6 +126,44 @@ export function App() {
 - `useFieldError(field)` for inline error state
 - `ErrorBoundaryWithEngine` for catching runtime errors and forwarding them to the engine
 
+## Vue Integration
+
+```ts
+import { createErrorEngine } from 'gracefulerrors'
+import { createErrorEnginePlugin, useErrorEngine } from 'gracefulerrors/vue'
+import { createApp } from 'vue'
+import App from './App.vue'
+
+const engine = createErrorEngine({
+  registry: {
+    NETWORK_ERROR: { ui: 'toast', message: 'Network error' },
+  },
+})
+
+const app = createApp(App)
+app.use(createErrorEnginePlugin(engine))
+app.mount('#app')
+```
+
+Inside any component:
+
+```ts
+import { useErrorEngine, useFieldError } from 'gracefulerrors/vue'
+
+// Access the engine
+const engine = useErrorEngine()
+engine?.handle({ code: 'NETWORK_ERROR' })
+
+// Bind inline field errors
+const { error } = useFieldError('email')
+// error is a Ref<AppError | null> that updates reactively
+```
+
+`gracefulerrors/vue` also exports:
+
+- `provideErrorEngine(engine)` for local subtree injection (alternative to the global plugin)
+- `ErrorBoundaryWithEngine` component for catching runtime errors and forwarding them to the engine
+
 ## Sonner Adapter
 
 ```tsx
@@ -161,6 +205,7 @@ Type exports are available from the root package as well.
 Additional entry points:
 
 - `gracefulerrors/react`
+- `gracefulerrors/vue`
 - `gracefulerrors/sonner`
 - `gracefulerrors/internal` for internal testing and low-level integration only
 
@@ -183,7 +228,7 @@ Common engine options include:
 ## Package Notes
 
 - Package format: ESM and CJS via conditional exports
-- Runtime peers: `react`, `react-dom`, and `sonner` are optional peer dependencies
+- Runtime peers: `react`, `react-dom`, `sonner`, and `vue` are optional peer dependencies
 - Current version: `0.1.0`
 
 ## Development
