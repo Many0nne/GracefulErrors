@@ -114,7 +114,7 @@ export interface ErrorSlot<TCode extends string = string> {
 export type StateListener<TCode extends string = string> = (
   event:
     | { type: 'ERROR_ADDED'; error: AppError<TCode>; action: UIAction }
-    | { type: 'ERROR_CLEARED'; code: TCode }
+    | { type: 'ERROR_CLEARED'; code: AppError<TCode>['code'] }
     | { type: 'ALL_CLEARED' }
 ) => void
 
