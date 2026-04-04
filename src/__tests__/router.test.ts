@@ -9,36 +9,43 @@ const registry: ErrorRegistry<Code> = {
   UNAUTHORIZED: { ui: 'modal', message: 'Unauthorized' },
 }
 
+function baseConfigFor(code: Code) {
+  return {
+    routingContext: { activeCount: 0, queueLength: 0 },
+    resolvedEntry: registry[code],
+  }
+}
+
 const baseConfig = {
   routingContext: { activeCount: 0, queueLength: 0 },
 }
 
 describe('Registry match', () => {
-  it('error with registry entry â†’ returns entry.ui', () => {
+  it('error with registry entry → returns entry.ui', () => {
     const router = createUIRouter<Code>()
     const error: AppError<Code> = { code: 'NOT_FOUND' }
-    expect(router.route(error, registry, baseConfig)).toBe('toast')
+    expect(router.route(error, registry, baseConfigFor('NOT_FOUND'))).toBe('toast')
   })
 
-  it('routingStrategy returning non-null â†’ overrides entry', () => {
+  it('routingStrategy returning non-null → overrides entry', () => {
     const router = createUIRouter<Code>()
     const error: AppError<Code> = { code: 'NOT_FOUND' }
     const strategy: RoutingStrategy<Code> = () => 'inline'
-    expect(router.route(error, registry, { ...baseConfig, routingStrategy: strategy })).toBe('inline')
+    expect(router.route(error, registry, { ...baseConfigFor('NOT_FOUND'), routingStrategy: strategy })).toBe('inline')
   })
 
-  it('routingStrategy returning null â†’ falls through to entry', () => {
+  it('routingStrategy returning null → falls through to entry', () => {
     const router = createUIRouter<Code>()
     const error: AppError<Code> = { code: 'NOT_FOUND' }
     const strategy: RoutingStrategy<Code> = () => null
-    expect(router.route(error, registry, { ...baseConfig, routingStrategy: strategy })).toBe('toast')
+    expect(router.route(error, registry, { ...baseConfigFor('NOT_FOUND'), routingStrategy: strategy })).toBe('toast')
   })
 })
 
 describe('Fallback', () => {
   const error: AppError<Code> = { code: 'NETWORK_ERROR' }
 
-  it('no registry entry, allowFallback: true, fallback configured â†’ returns fallback.ui', () => {
+  it('no registry entry, allowFallback: true, fallback configured → returns fallback.ui', () => {
     const router = createUIRouter<Code>()
     expect(router.route(error, registry, {
       ...baseConfig,
@@ -47,7 +54,7 @@ describe('Fallback', () => {
     })).toBe('modal')
   })
 
-  it('no registry entry, allowFallback: false â†’ returns toast (hard default)', () => {
+  it('no registry entry, allowFallback: false → returns toast (hard default)', () => {
     const router = createUIRouter<Code>()
     expect(router.route(error, registry, {
       ...baseConfig,
@@ -56,7 +63,7 @@ describe('Fallback', () => {
     })).toBe('toast')
   })
 
-  it('no registry entry, allowFallback undefined (default true), fallback configured â†’ returns fallback.ui', () => {
+  it('no registry entry, allowFallback undefined (default true), fallback configured → returns fallback.ui', () => {
     const router = createUIRouter<Code>()
     expect(router.route(error, registry, {
       ...baseConfig,
@@ -64,14 +71,14 @@ describe('Fallback', () => {
     })).toBe('silent')
   })
 
-  it('no registry entry, no fallback configured â†’ returns toast', () => {
+  it('no registry entry, no fallback configured → returns toast', () => {
     const router = createUIRouter<Code>()
     expect(router.route(error, registry, baseConfig)).toBe('toast')
   })
 })
 
 describe('requireRegistry', () => {
-  it('requireRegistry: true + no entry â†’ throws', () => {
+  it('requireRegistry: true + no entry → throws', () => {
     const router = createUIRouter<Code>()
     const error: AppError<Code> = { code: 'NETWORK_ERROR' }
     expect(() => router.route(error, registry, { ...baseConfig, requireRegistry: true })).toThrow(
@@ -96,6 +103,7 @@ describe('routingStrategy context', () => {
     router.route(error, registry, {
       routingContext: { activeCount: 2, queueLength: 1 },
       routingStrategy: strategy,
+      resolvedEntry: registry['NOT_FOUND'],
     })
     expect(strategy).toHaveBeenCalledWith(
       error,
@@ -112,19 +120,21 @@ describe('routingStrategy context', () => {
     expect(router.route(error, registry, {
       routingContext: { activeCount: 2, queueLength: 0 },
       routingStrategy: strategy,
+      resolvedEntry: registry['UNAUTHORIZED'],
     })).toBe('toast')
     expect(router.route(error, registry, {
       routingContext: { activeCount: 1, queueLength: 0 },
       routingStrategy: strategy,
+      resolvedEntry: registry['UNAUTHORIZED'],
     })).toBe('modal') // falls through to registry
   })
 })
 
 describe('Edge cases', () => {
-  it('routingStrategy throws â†’ treated as returning null (continue to registry lookup)', () => {
+  it('routingStrategy throws → treated as returning null (continue to registry lookup)', () => {
     const router = createUIRouter<Code>()
     const error: AppError<Code> = { code: 'NOT_FOUND' }
     const strategy: RoutingStrategy<Code> = () => { throw new Error('strategy boom') }
-    expect(router.route(error, registry, { ...baseConfig, routingStrategy: strategy })).toBe('toast')
+    expect(router.route(error, registry, { ...baseConfigFor('NOT_FOUND'), routingStrategy: strategy })).toBe('toast')
   })
 })

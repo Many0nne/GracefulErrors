@@ -124,6 +124,22 @@ describe('TTL', () => {
     expect(sm.getActiveSlots()).toHaveLength(0)
   })
 
+  it('TTL expiry emits ERROR_CLEARED', () => {
+    const listener = vi.fn()
+    const sm = createStateManager({ maxConcurrent: 1 })
+    sm.subscribe(listener)
+
+    const slot = { ...makeSlot('A', 'fp-a'), ttl: 200 }
+    sm.enqueue(slot)
+    listener.mockClear()
+
+    vi.advanceTimersByTime(201)
+
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'ERROR_CLEARED', code: 'A' })
+    )
+  })
+
   it('release() before TTL fires → timer cancelled', () => {
     const onDropped = vi.fn()
     const sm = createStateManager({ maxConcurrent: 1, onDropped })
@@ -169,6 +185,26 @@ describe('State events', () => {
     sm.subscribe(throwingListener)
 
     expect(() => sm.enqueue(makeSlot('FOO'))).not.toThrow()
+  })
+})
+
+describe('release() with multiple fingerprints', () => {
+  it('release(code) with distinct fingerprints releases all matching slots', () => {
+    const listener = vi.fn()
+    const sm = createStateManager({ maxConcurrent: 3 })
+    sm.subscribe(listener)
+
+    sm.enqueue(makeSlot('FOO', 'fp-1'))
+    sm.enqueue(makeSlot('FOO', 'fp-2'))
+    listener.mockClear()
+
+    sm.release('FOO' as never)
+
+    expect(sm.getActiveSlots().filter(s => s.error.code === 'FOO')).toHaveLength(0)
+    const clearedEvents = listener.mock.calls.filter(
+      ([e]) => e.type === 'ERROR_CLEARED' && e.code === 'FOO'
+    )
+    expect(clearedEvents).toHaveLength(2)
   })
 })
 

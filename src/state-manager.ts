@@ -20,6 +20,7 @@ export function createStateManager<TCode extends string>(
   const activeSlots = new Map<string, InternalSlot>()
   const queue: InternalSlot[] = []
   const dedupeMap = new Map<string, number>()
+  const dedupeTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const ttlTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const listeners = new Set<StateListener<TCode>>()
 
@@ -51,9 +52,11 @@ export function createStateManager<TCode extends string>(
     if (ttl != null && ttl > 0) {
       const timer = setTimeout(() => {
         if (activeSlots.has(slot.fingerprint)) {
+          slot.state = 'EXPIRED'
           activeSlots.delete(slot.fingerprint)
           ttlTimers.delete(slot.fingerprint)
           onDropped?.(slot.error, 'ttl_expired')
+          notify({ type: 'ERROR_CLEARED', code: slot.error.code })
           promoteFromQueue()
         }
       }, ttl)
@@ -63,19 +66,30 @@ export function createStateManager<TCode extends string>(
     notify({ type: 'ERROR_ADDED', error: slot.error, action })
   }
 
-  function canHandle(fingerprint: string): boolean {
+  function isDuplicate(fingerprint: string, now: number): boolean {
     const lastSeen = dedupeMap.get(fingerprint)
-    if (lastSeen === undefined) return true
-    return Date.now() - lastSeen >= dedupeWindow
+    if (lastSeen === undefined) return false
+    return now - lastSeen < dedupeWindow
+  }
+
+  function canHandle(fingerprint: string): boolean {
+    return !isDuplicate(fingerprint, Date.now())
   }
 
   function enqueue(slot: InternalSlot): 'active' | 'queued' | 'rejected' {
-    if (!canHandle(slot.fingerprint)) {
+    const now = Date.now()
+    if (isDuplicate(slot.fingerprint, now)) {
       onDropped?.(slot.error, 'dedupe')
       return 'rejected'
     }
 
-    dedupeMap.set(slot.fingerprint, Date.now())
+    dedupeMap.set(slot.fingerprint, now)
+    const prevTimer = dedupeTimers.get(slot.fingerprint)
+    if (prevTimer !== undefined) clearTimeout(prevTimer)
+    dedupeTimers.set(slot.fingerprint, setTimeout(() => {
+      dedupeMap.delete(slot.fingerprint)
+      dedupeTimers.delete(slot.fingerprint)
+    }, dedupeWindow))
 
     if (activeSlots.size < maxConcurrent) {
       activateSlot(slot, slot._pendingAction as UIAction)
@@ -93,33 +107,28 @@ export function createStateManager<TCode extends string>(
   }
 
   function release(code: TCode): void {
-    // Check active slots first
-    let targetFingerprint: string | undefined
-
-    for (const [fingerprint, slot] of activeSlots) {
-      if (slot.error.code === code) {
-        targetFingerprint = fingerprint
-        break
-      }
+    // Collect all matching fingerprints first (avoid mutating Map during iteration)
+    const toRelease: string[] = []
+    for (const [fp, slot] of activeSlots) {
+      if (slot.error.code === code) toRelease.push(fp)
     }
 
-    if (targetFingerprint !== undefined) {
-      const slot = activeSlots.get(targetFingerprint)!
+    for (const fp of toRelease) {
+      const slot = activeSlots.get(fp)!
       slot.state = 'EXPIRED'
-      activeSlots.delete(targetFingerprint)
-
-      const timer = ttlTimers.get(targetFingerprint)
+      activeSlots.delete(fp)
+      const timer = ttlTimers.get(fp)
       if (timer !== undefined) {
         clearTimeout(timer)
-        ttlTimers.delete(targetFingerprint)
+        ttlTimers.delete(fp)
       }
-
       notify({ type: 'ERROR_CLEARED', code })
       promoteFromQueue()
-      return
     }
 
-    // Check queue â€” spec: QUEUED | clear() â†’ EXPIRED | remove from queue
+    if (toRelease.length > 0) return
+
+    // Check queue — spec: QUEUED | clear() → EXPIRED | remove from queue
     const queueIdx = queue.findIndex((slot) => slot.error.code === code)
     if (queueIdx !== -1) {
       const slot = queue[queueIdx]!
@@ -133,15 +142,20 @@ export function createStateManager<TCode extends string>(
     return Array.from(activeSlots.values())
   }
 
+  function getActiveCount(): number {
+    return activeSlots.size
+  }
+
   function getQueueLength(): number {
     return queue.length
   }
 
   function clearAll(): void {
-    for (const timer of ttlTimers.values()) {
-      clearTimeout(timer)
-    }
+    for (const timer of ttlTimers.values()) clearTimeout(timer)
     ttlTimers.clear()
+    for (const timer of dedupeTimers.values()) clearTimeout(timer)
+    dedupeTimers.clear()
+    dedupeMap.clear()
     activeSlots.clear()
     queue.length = 0
     notify({ type: 'ALL_CLEARED' })
@@ -152,7 +166,7 @@ export function createStateManager<TCode extends string>(
     return () => { listeners.delete(listener) }
   }
 
-  return { canHandle, enqueue, release, getActiveSlots, getQueueLength, clearAll, subscribe }
+  return { canHandle, enqueue, release, getActiveSlots, getActiveCount, getQueueLength, clearAll, subscribe }
 }
 
 export type { ErrorStateManager, StateListener }

@@ -1,4 +1,4 @@
-// Public API â€” gracefulerrors
+// Public API — gracefulerrors
 export { createErrorEngine, createFetch } from './engine'
 export { mergeRegistries } from './registry'
 export { builtInNormalizer } from './normalizer'

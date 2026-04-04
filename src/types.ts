@@ -8,7 +8,7 @@ export interface ErrorKey<TCode extends string = string, TField extends string =
   field?: TField
 }
 
-// Normalized error â€” the engine's internal contract
+// Normalized error — the engine's internal contract
 export interface AppError<TCode extends string = string, TField extends string = string> {
   code: TCode | SystemErrorCode
   status?: number
@@ -34,7 +34,7 @@ export type TransformContext = {
   raw: unknown
 }
 
-// UI options â€” typed per ui value via discriminated union
+// UI options — typed per ui value via discriminated union
 export type UIOptions =
   | {
       ui: 'toast'
@@ -49,7 +49,7 @@ export type UIOptions =
   | { ui: 'inline'; uiOptions?: Record<string, unknown> }
   | { ui: 'silent'; uiOptions?: never }
 
-export type UIAction = 'toast' | 'modal' | 'inline' | 'silent'
+export type UIAction = UIOptions['ui']
 
 // Registry types
 export type ErrorRegistryEntry<TCode extends string = string> = {
@@ -57,7 +57,7 @@ export type ErrorRegistryEntry<TCode extends string = string> = {
   ttl?: number
 } & UIOptions
 
-// Semantic alias â€” structurally identical to ErrorRegistryEntry, may diverge in V1
+// Semantic alias — structurally identical to ErrorRegistryEntry, may diverge in V1
 export type ErrorRegistryEntryFull<TCode extends string = string> = ErrorRegistryEntry<TCode>
 
 export type ErrorRegistry<TCode extends string = string> = {
@@ -110,7 +110,7 @@ export interface ErrorSlot<TCode extends string = string> {
   expiresAt?: number  // ms timestamp, only while ACTIVE when TTL is enabled
 }
 
-// @internal â€” exported via gracefulerrors/internal for tests only
+// @internal — exported via gracefulerrors/internal for tests only
 export type StateListener<TCode extends string = string> = (
   event:
     | { type: 'ERROR_ADDED'; error: AppError<TCode>; action: UIAction }
@@ -118,24 +118,26 @@ export type StateListener<TCode extends string = string> = (
     | { type: 'ALL_CLEARED' }
 ) => void
 
-// @internal â€” exported via gracefulerrors/internal for tests only
+// @internal — exported via gracefulerrors/internal for tests only
 export interface ErrorStateManager<TCode extends string = string> {
   canHandle(fingerprint: string): boolean
   enqueue(slot: ErrorSlot<TCode> & { _pendingAction?: UIAction; ttl?: number }): 'active' | 'queued' | 'rejected'
   release(code: TCode): void
   getActiveSlots(): ErrorSlot<TCode>[]
+  getActiveCount(): number
   getQueueLength(): number
   clearAll(): void
   subscribe(listener: StateListener<TCode>): () => void
 }
 
-// @internal â€” exported via gracefulerrors/internal for tests only
+// @internal — exported via gracefulerrors/internal for tests only
 export interface UIRouter<TCode extends string = string, TField extends string = string> {
   route(
     error: AppError<TCode, TField>,
     registry: ErrorRegistry<TCode>,
     config: Pick<ErrorEngineConfig<TCode, TField>, 'fallback' | 'requireRegistry' | 'allowFallback' | 'routingStrategy'> & {
       routingContext?: { activeCount: number; queueLength: number }
+      resolvedEntry?: ErrorRegistryEntryFull<TCode>
     }
   ): UIAction | null
 }
@@ -152,7 +154,7 @@ export interface ErrorEngineConfig<TCode extends string = string, TField extends
   requireRegistry?: boolean
   // Default: true. When false, configured fallback is ignored and engine uses 'toast' as hard default.
   allowFallback?: boolean
-  // 'inline' intentionally excluded â€” inline errors require context.field to be meaningful.
+  // 'inline' intentionally excluded — inline errors require context.field to be meaningful.
   fallback?: {
     ui: 'toast' | 'modal' | 'silent'
     message?: string

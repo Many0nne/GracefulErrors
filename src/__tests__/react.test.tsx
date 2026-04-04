@@ -58,7 +58,7 @@ describe('ErrorEngineProvider + useErrorEngine', () => {
     process.env['NODE_ENV'] = origEnv
   })
 
-  it('two nested providers â€” inner hook returns inner engine', () => {
+  it('two nested providers — inner hook returns inner engine', () => {
     const outerEngine = makeEngine()
     const innerEngine = makeEngine()
     let captured: ErrorEngine | null = null
@@ -108,7 +108,7 @@ describe('useFieldError', () => {
     return <div data-testid="error">{error ? error.code : 'none'}</div>
   }
 
-  it('no inline error â€” returns null', () => {
+  it('no inline error — returns null', () => {
     const engine = makeSubscribableEngine()
     render(
       <ErrorEngineProvider engine={engine}>
@@ -118,7 +118,7 @@ describe('useFieldError', () => {
     expect(screen.getByTestId('error').textContent).toBe('none')
   })
 
-  it('ERROR_ADDED inline with matching field â€” updates error', async () => {
+  it('ERROR_ADDED inline with matching field — updates error', async () => {
     const engine = makeSubscribableEngine()
     render(
       <ErrorEngineProvider engine={engine}>
@@ -137,7 +137,7 @@ describe('useFieldError', () => {
     expect(screen.getByTestId('error').textContent).toBe('EMAIL_INVALID')
   })
 
-  it('ERROR_ADDED inline with different field â€” error state unchanged', async () => {
+  it('ERROR_ADDED inline with different field — error state unchanged', async () => {
     const engine = makeSubscribableEngine()
     render(
       <ErrorEngineProvider engine={engine}>
@@ -156,7 +156,7 @@ describe('useFieldError', () => {
     expect(screen.getByTestId('error').textContent).toBe('none')
   })
 
-  it('ALL_CLEARED â€” clears error', async () => {
+  it('ALL_CLEARED — clears error', async () => {
     const engine = makeSubscribableEngine()
     render(
       <ErrorEngineProvider engine={engine}>
@@ -181,7 +181,7 @@ describe('useFieldError', () => {
     expect(screen.getByTestId('error').textContent).toBe('none')
   })
 
-  it('ERROR_CLEARED with matching code â€” clears error', async () => {
+  it('ERROR_CLEARED with matching code — clears error', async () => {
     const engine = makeSubscribableEngine()
     render(
       <ErrorEngineProvider engine={engine}>
@@ -204,7 +204,7 @@ describe('useFieldError', () => {
     expect(screen.getByTestId('error').textContent).toBe('none')
   })
 
-  it('unmount â€” unsubscribe is called', () => {
+  it('unmount — unsubscribe is called', () => {
     const unsubscribe = vi.fn()
     const engine = makeEngine({
       subscribe: vi.fn().mockReturnValue(unsubscribe),
@@ -220,7 +220,7 @@ describe('useFieldError', () => {
     expect(unsubscribe).toHaveBeenCalled()
   })
 
-  it('no provider â€” returns null without crash', () => {
+  it('no provider — returns null without crash', () => {
     render(<FieldConsumer field="email" />)
     expect(screen.getByTestId('error').textContent).toBe('none')
   })
@@ -249,7 +249,7 @@ describe('ErrorBoundaryWithEngine', () => {
     expect(screen.getByText('OK')).toBeTruthy()
   })
 
-  it('when child throws â€” renders fallback', () => {
+  it('when child throws — renders fallback', () => {
     render(
       <ErrorBoundaryWithEngine fallback={<div>Error fallback</div>}>
         <ThrowingChild shouldThrow={true} />
@@ -270,7 +270,7 @@ describe('ErrorBoundaryWithEngine', () => {
     expect(engine.handle).toHaveBeenCalledWith(expect.any(Error))
   })
 
-  it('no provider â€” renders fallback, no engine call, no crash', () => {
+  it('no provider — renders fallback, no engine call, no crash', () => {
     render(
       <ErrorBoundaryWithEngine fallback={<div>fallback</div>}>
         <ThrowingChild shouldThrow={true} />

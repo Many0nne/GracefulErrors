@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createErrorEngine, createFetch } from '../engine'
 import type {
   AppError,
@@ -84,7 +84,7 @@ describe('Execution order', () => {
     const engine = makeEngine({ onErrorAsync, onNormalized: () => order.push('onNormalized') })
     const result = engine.handle(structuredNotFound)
     order.push('after handle')
-    // handle() returned synchronously â€” async not yet resolved
+    // handle() returned synchronously — async not yet resolved
     expect(result.handled).toBe(true)
     expect(asyncResolved).toBe(false)
     expect(order).toEqual(['onNormalized', 'after handle'])
@@ -200,7 +200,7 @@ describe('Normalizer precedence', () => {
 // ---------------------------------------------------------------------------
 
 describe('Routing', () => {
-  it('registry match â†’ correct UIAction passed to renderer', () => {
+  it('registry match → correct UIAction passed to renderer', () => {
     const renderer = makeRenderer()
     const engine = makeEngine({}, renderer)
     engine.handle(structuredNotFound)
@@ -210,7 +210,7 @@ describe('Routing', () => {
     )
   })
 
-  it('no match + fallback â†’ fallback.ui used', () => {
+  it('no match + fallback → fallback.ui used', () => {
     const renderer = makeRenderer()
     const engine = makeEngine(
       { registry: {}, fallback: { ui: 'toast', message: 'Fallback' } },
@@ -223,14 +223,18 @@ describe('Routing', () => {
     )
   })
 
-  it('requireRegistry: true + no match â†’ onFallback fires, then throws', () => {
+  it('requireRegistry: true + no match → onFallback fires, returns { handled: false }', () => {
     const onFallback = vi.fn()
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const engine = makeEngine({ registry: {}, requireRegistry: true, onFallback })
-    expect(() => engine.handle({ code: 'UNKNOWN_CODE' })).toThrow('[gracefulerrors] Registry entry required')
+    const result = engine.handle({ code: 'UNKNOWN_CODE' })
+    expect(result.handled).toBe(false)
+    expect(result.uiAction).toBeNull()
     expect(onFallback).toHaveBeenCalledOnce()
+    errSpy.mockRestore()
   })
 
-  it('no match + no requireRegistry â†’ onFallback fires without throw', () => {
+  it('no match + no requireRegistry → onFallback fires without throw', () => {
     const onFallback = vi.fn()
     const engine = makeEngine({ onFallback })
     const result = engine.handle({ code: 'UNKNOWN_CODE' })
@@ -244,7 +248,7 @@ describe('Routing', () => {
 // ---------------------------------------------------------------------------
 
 describe('State integration', () => {
-  it('dedupe: same error within dedupeWindow â†’ second handle() returns { handled: false }', () => {
+  it('dedupe: same error within dedupeWindow → second handle() returns { handled: false }', () => {
     const engine = makeEngine({ dedupeWindow: 5000 })
     const first = engine.handle(structuredNotFound)
     const second = engine.handle(structuredNotFound)
@@ -261,7 +265,7 @@ describe('State integration', () => {
     expect(second.handled).toBe(true)
   })
 
-  it('maxConcurrent: 4th error when max=3 â†’ queued (handled: true)', () => {
+  it('maxConcurrent: 4th error when max=3 → queued (handled: true)', () => {
     const engine = makeEngine({ maxConcurrent: 3, dedupeWindow: 0 })
     const r1 = engine.handle({ code: 'NOT_FOUND' })
     const r2 = engine.handle({ code: 'UNAUTHORIZED' })
@@ -274,11 +278,11 @@ describe('State integration', () => {
     expect(r4.handled).toBe(true)
   })
 
-  it('maxQueue: overflow â†’ rejected (handled: false)', () => {
+  it('maxQueue: overflow → rejected (handled: false)', () => {
     const engine = makeEngine({ maxConcurrent: 1, maxQueue: 1, dedupeWindow: 0 })
     engine.handle({ code: 'NOT_FOUND' })          // active
     engine.handle({ code: 'UNAUTHORIZED' })        // queued
-    const r3 = engine.handle({ code: 'RATE_LIMITED' }) // overflow â†’ rejected
+    const r3 = engine.handle({ code: 'RATE_LIMITED' }) // overflow → rejected
     expect(r3.handled).toBe(false)
   })
 
@@ -313,7 +317,7 @@ describe('Renderer', () => {
     )
   })
 
-  it('modal: onDismiss callback provided â†’ calling it releases the slot', () => {
+  it('modal: onDismiss callback provided → calling it releases the slot', () => {
     const renderer = makeRenderer()
     const engine = makeEngine({}, renderer)
     engine.handle(structuredUnauthorized)
@@ -328,14 +332,14 @@ describe('Renderer', () => {
     // No throw = released correctly
   })
 
-  it('inline ui â†’ renderer.render() NOT called', () => {
+  it('inline ui → renderer.render() NOT called', () => {
     const renderer = makeRenderer()
     const engine = makeEngine({}, renderer)
     engine.handle({ code: 'INLINE_ERR' })
     expect(renderer.render).not.toHaveBeenCalled()
   })
 
-  it('silent route â†’ renderer.render() NOT called, uiAction: null', () => {
+  it('silent route → renderer.render() NOT called, uiAction: null', () => {
     const silentRegistry: ErrorRegistry<'SILENT_ERR'> = {
       SILENT_ERR: { ui: 'silent' },
     }
@@ -347,9 +351,24 @@ describe('Renderer', () => {
     expect(result.uiAction).toBeNull()
   })
 
-  it('renderer not provided â†’ no error thrown', () => {
+  it('renderer not provided → no error thrown', () => {
     const engine = makeEngine()
     expect(() => engine.handle(structuredNotFound)).not.toThrow()
+  })
+
+  it('TTL expiry → renderer.clear() called with the error code', () => {
+    vi.useFakeTimers()
+    const renderer = makeRenderer()
+    const ttlRegistry = { ...registry, NOT_FOUND: { ...registry.NOT_FOUND, ttl: 200 } }
+    const engine = createErrorEngine<Code>({ registry: ttlRegistry, renderer })
+
+    engine.handle(structuredNotFound)
+    ;(renderer.clear as ReturnType<typeof vi.fn>).mockClear()
+
+    vi.advanceTimersByTime(201)
+
+    expect(renderer.clear).toHaveBeenCalledWith('NOT_FOUND')
+    vi.useRealTimers()
   })
 
   it('toast: onDismiss NOT provided in lifecycle', () => {
@@ -408,7 +427,7 @@ describe('createFetch', () => {
     vi.restoreAllMocks()
   })
 
-  it('throw mode: 4xx â†’ engine.handle() called + rethrows', async () => {
+  it('throw mode: 4xx → engine.handle() called + rethrows', async () => {
     const engine = makeEngine()
     const handleSpy = vi.spyOn(engine, 'handle')
     const mockResponse = new Response(null, { status: 404 })
@@ -419,7 +438,7 @@ describe('createFetch', () => {
     expect(handleSpy).toHaveBeenCalledWith(mockResponse)
   })
 
-  it('handle mode: 4xx â†’ engine.handle() called + resolves undefined', async () => {
+  it('handle mode: 4xx → engine.handle() called + resolves undefined', async () => {
     const engine = makeEngine()
     const handleSpy = vi.spyOn(engine, 'handle')
     vi.spyOn(global, 'fetch').mockResolvedValue(new Response(null, { status: 500 }))
@@ -430,7 +449,7 @@ describe('createFetch', () => {
     expect(result).toBeUndefined()
   })
 
-  it('4xx with JSON body â†’ engine.handle() receives parsed payload', async () => {
+  it('4xx with JSON body → engine.handle() receives parsed payload', async () => {
     const engine = makeEngine()
     const handleSpy = vi.spyOn(engine, 'handle')
     const response = new Response(JSON.stringify({ code: 'NOT_FOUND', message: 'Not found' }), {
@@ -452,7 +471,7 @@ describe('createFetch', () => {
     )
   })
 
-  it('silent mode: 4xx â†’ engine.handle() NOT called + returns response', async () => {
+  it('silent mode: 4xx → engine.handle() NOT called + returns response', async () => {
     const engine = makeEngine()
     const handleSpy = vi.spyOn(engine, 'handle')
     const mockResponse = new Response(null, { status: 400 })
@@ -464,7 +483,7 @@ describe('createFetch', () => {
     expect(result).toBe(mockResponse)
   })
 
-  it('2xx â†’ pass-through, engine.handle() NOT called', async () => {
+  it('2xx → pass-through, engine.handle() NOT called', async () => {
     const engine = makeEngine()
     const handleSpy = vi.spyOn(engine, 'handle')
     const mockResponse = new Response('ok', { status: 200 })
@@ -476,7 +495,7 @@ describe('createFetch', () => {
     expect(result).toBe(mockResponse)
   })
 
-  it('AbortError â†’ never forwarded to engine, always rethrows', async () => {
+  it('AbortError → never forwarded to engine, always rethrows', async () => {
     const engine = makeEngine()
     const handleSpy = vi.spyOn(engine, 'handle')
     const abortError = new DOMException('Aborted', 'AbortError')
@@ -487,7 +506,7 @@ describe('createFetch', () => {
     expect(handleSpy).not.toHaveBeenCalled()
   })
 
-  it('network error (throw mode) â†’ engine.handle() called + rethrows', async () => {
+  it('network error (throw mode) → engine.handle() called + rethrows', async () => {
     const engine = makeEngine()
     const handleSpy = vi.spyOn(engine, 'handle')
     const networkErr = new TypeError('Failed to fetch')
@@ -498,7 +517,7 @@ describe('createFetch', () => {
     expect(handleSpy).toHaveBeenCalledWith(networkErr)
   })
 
-  it('network error (handle mode) â†’ engine.handle() called + resolves undefined', async () => {
+  it('network error (handle mode) → engine.handle() called + resolves undefined', async () => {
     const engine = makeEngine()
     vi.spyOn(global, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
 
@@ -507,7 +526,7 @@ describe('createFetch', () => {
     expect(result).toBeUndefined()
   })
 
-  it('network error (silent mode) â†’ engine.handle() NOT called + rethrows', async () => {
+  it('network error (silent mode) → engine.handle() NOT called + rethrows', async () => {
     const engine = makeEngine()
     const handleSpy = vi.spyOn(engine, 'handle')
     vi.spyOn(global, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
@@ -550,7 +569,7 @@ describe('Hook safety', () => {
     expect(onRouted).toHaveBeenCalled()
   })
 
-  it('throwing transform â†’ treated as null (normalized passes through unchanged)', () => {
+  it('throwing transform → treated as null (normalized passes through unchanged)', () => {
     const engine = makeEngine({
       transform: () => { throw new Error('transform boom') },
     })
@@ -575,7 +594,7 @@ describe('Hook safety', () => {
 // ---------------------------------------------------------------------------
 
 describe('Dev mode', () => {
-  it('debug: true â†’ console.log trace emitted in dev/test env', () => {
+  it('debug: true → console.log trace emitted in dev/test env', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     const originalEnv = process.env['NODE_ENV']
     process.env['NODE_ENV'] = 'development'
@@ -589,7 +608,7 @@ describe('Dev mode', () => {
     logSpy.mockRestore()
   })
 
-  it('debug: { trace: true } â†’ console.log trace emitted', () => {
+  it('debug: { trace: true } → console.log trace emitted', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     const originalEnv = process.env['NODE_ENV']
     process.env['NODE_ENV'] = 'development'
@@ -603,7 +622,7 @@ describe('Dev mode', () => {
     logSpy.mockRestore()
   })
 
-  it('debug: false â†’ no trace emitted', () => {
+  it('debug: false → no trace emitted', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     const engine = makeEngine({ debug: false })
@@ -613,7 +632,7 @@ describe('Dev mode', () => {
     logSpy.mockRestore()
   })
 
-  it('both normalizer + normalizers â†’ warn in development', () => {
+  it('both normalizer + normalizers → warn in development', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const originalEnv = process.env['NODE_ENV']
     process.env['NODE_ENV'] = 'development'
@@ -636,26 +655,26 @@ describe('Dev mode', () => {
 // ---------------------------------------------------------------------------
 
 describe('HandleResult contract', () => {
-  it('toast route â†’ handled: true, uiAction: "toast"', () => {
+  it('toast route → handled: true, uiAction: "toast"', () => {
     const engine = makeEngine()
     const result = engine.handle(structuredNotFound)
     expect(result).toMatchObject({ handled: true, uiAction: 'toast' })
   })
 
-  it('modal route â†’ handled: true, uiAction: "modal"', () => {
+  it('modal route → handled: true, uiAction: "modal"', () => {
     const engine = makeEngine()
     const result = engine.handle(structuredUnauthorized)
     expect(result).toMatchObject({ handled: true, uiAction: 'modal' })
   })
 
-  it('silent route â†’ handled: true, uiAction: null', () => {
+  it('silent route → handled: true, uiAction: null', () => {
     const silentReg: ErrorRegistry<'S'> = { S: { ui: 'silent' } }
     const engine = createErrorEngine({ registry: silentReg })
     const result = engine.handle({ code: 'S' })
     expect(result).toMatchObject({ handled: true, uiAction: null })
   })
 
-  it('transform mutation â†’ HandleResult.error reflects transformed error', () => {
+  it('transform mutation → HandleResult.error reflects transformed error', () => {
     const engine = makeEngine({
       transform: (error) => ({ ...error, message: 'overridden' }),
     })

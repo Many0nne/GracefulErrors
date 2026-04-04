@@ -1,12 +1,8 @@
 import { toast, Toaster } from 'sonner'
 import { createRoot } from 'react-dom/client'
 import { useEffect } from 'react'
-import type { RendererAdapter, RenderIntent, ErrorRegistryEntryFull, AppError } from '../types'
-
-function resolveMessage<TCode extends string = string>(entry: ErrorRegistryEntryFull<TCode>, error: AppError<TCode>): string | undefined {
-  if (typeof entry.message === 'function') return entry.message(error)
-  return entry.message
-}
+import type { RendererAdapter, RenderIntent } from '../types'
+import { resolveMessage } from '../registry'
 
 // ---------------------------------------------------------------------------
 // Modal component
@@ -63,8 +59,11 @@ function ModalDialog({
 // createSonnerAdapter
 // ---------------------------------------------------------------------------
 
+type ModalEntry = { root: ReturnType<typeof createRoot>; container: HTMLDivElement }
+
 export function createSonnerAdapter(): RendererAdapter {
   const activeToastIds = new Map<string, string | number>()
+  const activeModalRoots = new Map<string, ModalEntry>()
 
   function render<TCode extends string = string>(intent: RenderIntent<TCode>, lifecycle: { onDismiss?: () => void }): void {
     switch (intent.ui) {
@@ -83,7 +82,8 @@ export function createSonnerAdapter(): RendererAdapter {
         const opts = (intent.entry.uiOptions ?? {}) as ToastOpts
         const severity = opts.severity ?? 'error'
 
-        const severityMap: Record<string, typeof toast.error> = {
+        type Severity = NonNullable<ToastOpts['severity']>
+        const severityMap: Record<Severity, typeof toast.error> = {
           error: toast.error,
           warning: toast.warning,
           info: toast.info,
@@ -112,8 +112,11 @@ export function createSonnerAdapter(): RendererAdapter {
         const container = document.createElement('div')
         document.body.appendChild(container)
         const root = createRoot(container)
+        const key = intent.error.code as string
+        activeModalRoots.set(key, { root, container })
 
         const dismiss = () => {
+          activeModalRoots.delete(key)
           root.unmount()
           if (document.body.contains(container)) {
             document.body.removeChild(container)
@@ -141,11 +144,22 @@ export function createSonnerAdapter(): RendererAdapter {
       toast.dismiss(id)
       activeToastIds.delete(code)
     }
+    const modal = activeModalRoots.get(code)
+    if (modal !== undefined) {
+      modal.root.unmount()
+      if (document.body.contains(modal.container)) document.body.removeChild(modal.container)
+      activeModalRoots.delete(code)
+    }
   }
 
   function clearAll(): void {
     toast.dismiss()
     activeToastIds.clear()
+    for (const { root, container } of activeModalRoots.values()) {
+      root.unmount()
+      if (document.body.contains(container)) document.body.removeChild(container)
+    }
+    activeModalRoots.clear()
   }
 
   return { render, clear, clearAll }

@@ -1,5 +1,4 @@
-import type { AppError, ErrorEngineConfig, ErrorRegistry, UIAction, UIRouter } from './types'
-import { lookupEntry } from './registry'
+import type { AppError, ErrorEngineConfig, ErrorRegistryEntryFull, ErrorRegistry, UIAction, UIRouter } from './types'
 
 export function createUIRouter<TCode extends string, TField extends string = string>(): UIRouter<TCode, TField> {
   function route(
@@ -7,15 +6,16 @@ export function createUIRouter<TCode extends string, TField extends string = str
     registry: ErrorRegistry<TCode>,
     config: Pick<ErrorEngineConfig<TCode, TField>, 'fallback' | 'requireRegistry' | 'allowFallback' | 'routingStrategy'> & {
       routingContext?: { activeCount: number; queueLength: number }
+      resolvedEntry?: ErrorRegistryEntryFull<TCode>
     }
   ): UIAction | null {
-    const entry = lookupEntry(registry, error.code)
+    const entry = config.resolvedEntry
 
     if (entry == null && config.requireRegistry) {
       throw new Error(`[gracefulerrors] Registry entry required for code: ${error.code}`)
     }
 
-    const routingContext = (config as { routingContext?: { activeCount: number; queueLength: number } }).routingContext ?? {
+    const routingContext = config.routingContext ?? {
       activeCount: 0,
       queueLength: 0,
     }
@@ -32,17 +32,17 @@ export function createUIRouter<TCode extends string, TField extends string = str
       }
     }
 
-    // routingStrategy returns non-null â†’ use it (overrides registry)
+    // routingStrategy returns non-null → use it (overrides registry)
     if (strategyResult != null) {
       return strategyResult
     }
 
-    // Registry entry exists â†’ use its ui
+    // Registry entry exists → use its ui
     if (entry != null) {
       return entry.ui
     }
 
-    // No match â€” apply fallback logic
+    // No match — apply fallback logic
     // allowFallback defaults to true
     const allowFallback = config.allowFallback !== false
 

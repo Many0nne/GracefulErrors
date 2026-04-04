@@ -9,6 +9,9 @@ export default defineConfig({
     vue: 'src/vue.ts',
   },
   format: ['esm', 'cjs'],
+  outExtension({ format }) {
+    return { js: format === 'esm' ? '.mjs' : '.cjs' }
+  },
   dts: true,
   splitting: false,
   sourcemap: true,

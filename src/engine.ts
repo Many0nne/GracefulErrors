@@ -127,13 +127,21 @@ export function createErrorEngine<TCode extends string = string, TField extends 
 
   // ---- Init: aggregation ----
   const aggregationMap = new Map<string, number>()
+  const aggregationTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+  // ---- Init: relay TTL expirations to renderer ----
+  stateManager.subscribe((event) => {
+    if (event.type === 'ERROR_CLEARED') {
+      config.renderer?.clear(event.code as TCode)
+    }
+  })
 
   // ---------------------------------------------------------------------------
   // handle
   // ---------------------------------------------------------------------------
 
   function handle(raw: unknown): HandleResult<TCode> {
-    // Step 1: onError â€” always first, even if normalization will fail
+    // Step 1: onError — always first, even if normalization will fail
     safeCall(config.onError, raw)
 
     // Step 2: normalize
@@ -179,11 +187,14 @@ export function createErrorEngine<TCode extends string = string, TField extends 
 
     if (!entry && config.requireRegistry) {
       safeCall(config.onFallback, current)
-      throw new Error(`[gracefulerrors] Registry entry required for code: ${current.code}`)
+      if (process.env['NODE_ENV'] !== 'production') {
+        console.error(`[gracefulerrors] Registry entry required for code: ${String(current.code)}`)
+      }
+      return { handled: false, error: current, uiAction: null }
     }
 
     const routingContext = {
-      activeCount: stateManager.getActiveSlots().length,
+      activeCount: stateManager.getActiveCount(),
       queueLength: stateManager.getQueueLength(),
     }
 
@@ -196,7 +207,8 @@ export function createErrorEngine<TCode extends string = string, TField extends 
         allowFallback: config.allowFallback,
         routingStrategy: config.routingStrategy,
         routingContext,
-      } as Parameters<typeof router.route>[2]
+        resolvedEntry: entry,
+      }
     ) as UIAction
 
     // Step 8: onFallback (no match, no requireRegistry) + onRouted
@@ -223,20 +235,24 @@ export function createErrorEngine<TCode extends string = string, TField extends 
           return { handled: false, error: current, uiAction: null }
         }
         aggregationMap.set(aggKey, now)
+        const prevTimer = aggregationTimers.get(aggKey)
+        if (prevTimer !== undefined) clearTimeout(prevTimer)
+        aggregationTimers.set(aggKey, setTimeout(() => {
+          aggregationMap.delete(aggKey)
+          aggregationTimers.delete(aggKey)
+        }, aggWindow))
       }
     }
 
-    // Step 9: enqueue into state manager
-    const slot = {
+    const slot: ErrorSlot<TCode> & { ttl?: number; _pendingAction: UIAction } = {
       error: current,
       state: 'ACTIVE' as const,
       fingerprint,
       ttl: entry?.ttl,
       _pendingAction: action,
-    } as ErrorSlot<TCode> & { ttl?: number; _pendingAction: UIAction }
+    }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const placement = stateManager.enqueue(slot as any)
+    const placement = stateManager.enqueue(slot)
 
     if (placement === 'rejected') {
       return { handled: false, error: current, uiAction: null }
@@ -286,11 +302,14 @@ export function createErrorEngine<TCode extends string = string, TField extends 
 
   function clear(code: TCode): void {
     stateManager.release(code)
-    config.renderer?.clear(code)
+    // renderer.clear() is called via subscription on ERROR_CLEARED
   }
 
   function clearAll(): void {
     stateManager.clearAll()
+    for (const timer of aggregationTimers.values()) clearTimeout(timer)
+    aggregationTimers.clear()
+    aggregationMap.clear()
     config.renderer?.clearAll()
   }
 
@@ -327,7 +346,7 @@ export function createFetch(
             errorPayload = { status: response.status, ...(body as object) }
           }
         } catch {
-          // body is not JSON â€” fall back to raw Response
+          // body is not JSON — fall back to raw Response
         }
         engine.handle(errorPayload)
         if (mode === 'handle') return undefined
@@ -336,8 +355,8 @@ export function createFetch(
 
       return response
     } catch (error) {
-      // AbortError â†’ pass-through, never forwarded to engine
-      // DOMException may not extend Error in all environments â€” check name directly
+      // AbortError → pass-through, never forwarded to engine
+      // DOMException may not extend Error in all environments — check name directly
       if (error != null && (error as Error).name === 'AbortError') throw error
 
       // Re-thrown Response (4xx/5xx from the !response.ok branch above)
