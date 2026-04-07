@@ -5,7 +5,6 @@ export default defineConfig({
     index: 'src/index.ts',
     react: 'src/react.tsx',
     'adapters/sonner': 'src/adapters/sonner.tsx',
-    internal: 'src/internal.ts',
     vue: 'src/vue.ts',
     axios: 'src/axios.ts',
   },

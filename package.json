@@ -20,11 +20,6 @@
       "import": "./dist/adapters/sonner.mjs",
       "require": "./dist/adapters/sonner.cjs"
     },
-    "./internal": {
-      "types": "./dist/internal.d.ts",
-      "import": "./dist/internal.mjs",
-      "require": "./dist/internal.cjs"
-    },
     "./vue": {
       "types": "./dist/vue.d.ts",
       "import": "./dist/vue.mjs",

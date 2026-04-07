@@ -110,7 +110,7 @@ export interface ErrorSlot<TCode extends string = string> {
   expiresAt?: number  // ms timestamp, only while ACTIVE when TTL is enabled
 }
 
-// @internal — exported via gracefulerrors/internal for tests only
+// @internal
 export type StateListener<TCode extends string = string> = (
   event:
     | { type: 'ERROR_ADDED'; error: AppError<TCode>; action: UIAction }
@@ -118,7 +118,7 @@ export type StateListener<TCode extends string = string> = (
     | { type: 'ALL_CLEARED' }
 ) => void
 
-// @internal — exported via gracefulerrors/internal for tests only
+// @internal
 export interface ErrorStateManager<TCode extends string = string> {
   canHandle(fingerprint: string): boolean
   enqueue(slot: ErrorSlot<TCode> & { _pendingAction?: UIAction; ttl?: number }): 'active' | 'queued' | 'rejected'
@@ -130,7 +130,7 @@ export interface ErrorStateManager<TCode extends string = string> {
   subscribe(listener: StateListener<TCode>): () => void
 }
 
-// @internal — exported via gracefulerrors/internal for tests only
+// @internal
 export interface UIRouter<TCode extends string = string, TField extends string = string> {
   route(
     error: AppError<TCode, TField>,
