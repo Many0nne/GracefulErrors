@@ -7,6 +7,7 @@ export default defineConfig({
     'adapters/sonner': 'src/adapters/sonner.tsx',
     internal: 'src/internal.ts',
     vue: 'src/vue.ts',
+    axios: 'src/axios.ts',
   },
   format: ['esm', 'cjs'],
   outExtension({ format }) {
@@ -17,5 +18,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   treeshake: true,
-  external: ['react', 'react-dom', 'sonner', 'vue'],
+  external: ['react', 'react-dom', 'sonner', 'vue', 'axios'],
 })

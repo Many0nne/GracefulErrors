@@ -29,6 +29,11 @@
       "types": "./dist/vue.d.ts",
       "import": "./dist/vue.mjs",
       "require": "./dist/vue.cjs"
+    },
+    "./axios": {
+      "types": "./dist/axios.d.ts",
+      "import": "./dist/axios.mjs",
+      "require": "./dist/axios.cjs"
     }
   },
   "main": "./dist/index.cjs",
@@ -51,7 +56,8 @@
     "react": ">=18",
     "react-dom": ">=18",
     "sonner": ">=1",
-    "vue": ">=3"
+    "vue": ">=3",
+    "axios": ">=1"
   },
   "peerDependenciesMeta": {
     "sonner": {
@@ -64,6 +70,9 @@
       "optional": true
     },
     "vue": {
+      "optional": true
+    },
+    "axios": {
       "optional": true
     }
   },
