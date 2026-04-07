@@ -34,6 +34,11 @@
       "types": "./dist/adapters/react-hot-toast.d.ts",
       "import": "./dist/adapters/react-hot-toast.mjs",
       "require": "./dist/adapters/react-hot-toast.cjs"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.mjs",
+      "require": "./dist/testing.cjs"
     }
   },
   "main": "./dist/index.cjs",

@@ -8,6 +8,7 @@ export default defineConfig({
     'adapters/react-hot-toast': 'src/adapters/react-hot-toast.tsx',
     vue: 'src/vue.ts',
     axios: 'src/axios.ts',
+    testing: 'src/testing.ts',
   },
   format: ['esm', 'cjs'],
   outExtension({ format }) {
