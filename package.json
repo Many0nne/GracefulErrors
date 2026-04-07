@@ -29,6 +29,11 @@
       "types": "./dist/axios.d.ts",
       "import": "./dist/axios.mjs",
       "require": "./dist/axios.cjs"
+    },
+    "./react-hot-toast": {
+      "types": "./dist/adapters/react-hot-toast.d.ts",
+      "import": "./dist/adapters/react-hot-toast.mjs",
+      "require": "./dist/adapters/react-hot-toast.cjs"
     }
   },
   "main": "./dist/index.cjs",
@@ -48,11 +53,12 @@
     "lint": "eslint src --ext .ts,.tsx"
   },
   "peerDependencies": {
+    "axios": ">=1",
     "react": ">=18",
     "react-dom": ">=18",
+    "react-hot-toast": ">=2",
     "sonner": ">=1",
-    "vue": ">=3",
-    "axios": ">=1"
+    "vue": ">=3"
   },
   "peerDependenciesMeta": {
     "sonner": {
@@ -62,6 +68,9 @@
       "optional": true
     },
     "react-dom": {
+      "optional": true
+    },
+    "react-hot-toast": {
       "optional": true
     },
     "vue": {
@@ -85,6 +94,7 @@
     "jsdom": "^24.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
+    "react-hot-toast": "^2.6.0",
     "sonner": "^1.0.0",
     "tsd": "^0.31.0",
     "tsup": "^8.0.0",
