@@ -2,6 +2,8 @@
 export { createErrorEngine, createFetch } from './engine'
 export { mergeRegistries } from './registry'
 export { builtInNormalizer } from './normalizer'
+export { createHttpPreset } from './http-preset'
+export type { HttpPresetCode } from './http-preset'
 
 export type {
   AppError,
