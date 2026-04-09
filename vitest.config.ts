@@ -13,7 +13,7 @@ export default defineConfig({
         branches: 80,
         statements: 80,
       },
-      exclude: ['src/__tests__/**', 'src/types.ts', 'src/internal.ts'],
+      exclude: ['src/__tests__/**', 'src/types.ts'],
     },
   },
 })
