@@ -33,10 +33,9 @@ function isSuppressionDecision(
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function safeCall(
-  fn: ((...args: any[]) => any) | undefined,
-  ...args: any[]
+function safeCall<T extends unknown[]>(
+  fn: ((...args: T) => unknown) | undefined,
+  ...args: T
 ): void {
   if (!fn) return;
   try {
