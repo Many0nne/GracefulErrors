@@ -8,7 +8,7 @@ import type {
 
 export interface StateManagerConfig<TCode extends string> {
   maxConcurrent?: number; // default: 3
-  maxQueue?: number; // default: unbounded
+  maxQueue?: number; // default: 25
   dedupeWindow?: number; // ms, default: 300
   onDropped?: (
     error: AppError<TCode>,
@@ -20,7 +20,7 @@ export function createStateManager<TCode extends string = string>(
   config: StateManagerConfig<TCode>,
 ): ErrorStateManager<TCode> {
   const maxConcurrent = config.maxConcurrent ?? 3;
-  const maxQueue = config.maxQueue;
+  const maxQueue = config.maxQueue ?? 25;
   const dedupeWindow = config.dedupeWindow ?? 300;
   const { onDropped } = config;
 

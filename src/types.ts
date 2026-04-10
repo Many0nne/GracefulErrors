@@ -204,7 +204,7 @@ export interface ErrorEngineConfig<
   fingerprint?: (error: AppError<TCode, TField>) => string;
   dedupeWindow?: number; // ms, default: 300
   maxConcurrent?: number; // default: 3
-  maxQueue?: number; // default: unbounded
+  maxQueue?: number; // default: 25
   aggregation?: boolean | { enabled: boolean; window?: number };
   routingStrategy?: RoutingStrategy<TCode, TField>;
   transform?: (
