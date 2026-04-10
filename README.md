@@ -32,34 +32,34 @@ npm install vue
 ## Quick Start
 
 ```ts
-import { createErrorEngine } from 'gracefulerrors'
+import { createErrorEngine } from "gracefulerrors";
 
-type AppCode = 'AUTH_FAILED' | 'PAYMENT_FAILED'
+type AppCode = "AUTH_FAILED" | "PAYMENT_FAILED";
 
 const engine = createErrorEngine<AppCode>({
   registry: {
     AUTH_FAILED: {
-      ui: 'toast',
+      ui: "toast",
       uiOptions: {
-        severity: 'error',
+        severity: "error",
       },
-      message: 'Your session expired. Please sign in again.',
+      message: "Your session expired. Please sign in again.",
     },
     PAYMENT_FAILED: {
-      ui: 'modal',
-      message: 'Payment could not be processed.',
+      ui: "modal",
+      message: "Payment could not be processed.",
     },
   },
   fallback: {
-    ui: 'toast',
-    message: 'Something went wrong.',
+    ui: "toast",
+    message: "Something went wrong.",
   },
-})
+});
 
 engine.handle({
-  code: 'AUTH_FAILED',
-  message: '401 Unauthorized',
-})
+  code: "AUTH_FAILED",
+  message: "401 Unauthorized",
+});
 ```
 
 ## Fetch Wrapper
@@ -67,17 +67,17 @@ engine.handle({
 `createFetch` wraps the native `fetch` and forwards failures to the engine.
 
 ```ts
-import { createErrorEngine, createFetch } from 'gracefulerrors'
+import { createErrorEngine, createFetch } from "gracefulerrors";
 
 const engine = createErrorEngine({
   registry: {
-    NETWORK_ERROR: { ui: 'toast', message: 'Network error' },
+    NETWORK_ERROR: { ui: "toast", message: "Network error" },
   },
-})
+});
 
-const apiFetch = createFetch(engine, { mode: 'handle' })
+const apiFetch = createFetch(engine, { mode: "handle" });
 
-const response = await apiFetch('/api/profile')
+const response = await apiFetch("/api/profile");
 ```
 
 Supported modes:
@@ -89,27 +89,30 @@ Supported modes:
 ## React Integration
 
 ```tsx
-import { ErrorEngineProvider, useErrorEngine } from 'gracefulerrors/react'
-import { createErrorEngine } from 'gracefulerrors'
+import { ErrorEngineProvider, useErrorEngine } from "gracefulerrors/react";
+import { createErrorEngine } from "gracefulerrors";
 
 const engine = createErrorEngine({
   registry: {
-    NETWORK_ERROR: { ui: 'toast', message: 'Network error' },
+    NETWORK_ERROR: { ui: "toast", message: "Network error" },
   },
-})
+});
 
 function SaveButton() {
-  const errorEngine = useErrorEngine()
+  const errorEngine = useErrorEngine();
 
   return (
     <button
       onClick={() => {
-        errorEngine?.handle({ code: 'NETWORK_ERROR', message: 'Request failed' })
+        errorEngine?.handle({
+          code: "NETWORK_ERROR",
+          message: "Request failed",
+        });
       }}
     >
       Save
     </button>
-  )
+  );
 }
 
 export function App() {
@@ -117,7 +120,7 @@ export function App() {
     <ErrorEngineProvider engine={engine}>
       <SaveButton />
     </ErrorEngineProvider>
-  )
+  );
 }
 ```
 
@@ -129,33 +132,33 @@ export function App() {
 ## Vue Integration
 
 ```ts
-import { createErrorEngine } from 'gracefulerrors'
-import { createErrorEnginePlugin, useErrorEngine } from 'gracefulerrors/vue'
-import { createApp } from 'vue'
-import App from './App.vue'
+import { createErrorEngine } from "gracefulerrors";
+import { createErrorEnginePlugin, useErrorEngine } from "gracefulerrors/vue";
+import { createApp } from "vue";
+import App from "./App.vue";
 
 const engine = createErrorEngine({
   registry: {
-    NETWORK_ERROR: { ui: 'toast', message: 'Network error' },
+    NETWORK_ERROR: { ui: "toast", message: "Network error" },
   },
-})
+});
 
-const app = createApp(App)
-app.use(createErrorEnginePlugin(engine))
-app.mount('#app')
+const app = createApp(App);
+app.use(createErrorEnginePlugin(engine));
+app.mount("#app");
 ```
 
 Inside any component:
 
 ```ts
-import { useErrorEngine, useFieldError } from 'gracefulerrors/vue'
+import { useErrorEngine, useFieldError } from "gracefulerrors/vue";
 
 // Access the engine
-const engine = useErrorEngine()
-engine?.handle({ code: 'NETWORK_ERROR' })
+const engine = useErrorEngine();
+engine?.handle({ code: "NETWORK_ERROR" });
 
 // Bind inline field errors
-const { error } = useFieldError('email')
+const { error } = useFieldError("email");
 // error is a Ref<AppError | null> that updates reactively
 ```
 
@@ -167,19 +170,19 @@ const { error } = useFieldError('email')
 ## Sonner Adapter
 
 ```tsx
-import { SonnerToaster, createSonnerAdapter } from 'gracefulerrors/sonner'
-import { createErrorEngine } from 'gracefulerrors'
+import { SonnerToaster, createSonnerAdapter } from "gracefulerrors/sonner";
+import { createErrorEngine } from "gracefulerrors";
 
 const engine = createErrorEngine({
   registry: {
     SERVER_ERROR: {
-      ui: 'toast',
-      severity: 'error',
-      message: 'Server error. Please try again.',
+      ui: "toast",
+      severity: "error",
+      message: "Server error. Please try again.",
     },
   },
   renderer: createSonnerAdapter(),
-})
+});
 
 export function Root() {
   return (
@@ -187,7 +190,7 @@ export function Root() {
       <SonnerToaster />
       {/* your app */}
     </>
-  )
+  );
 }
 ```
 
