@@ -106,6 +106,121 @@ function noOpNormalizer<C extends string, F extends string>(
 }
 
 // ---------------------------------------------------------------------------
+// Config validation
+// ---------------------------------------------------------------------------
+
+function warnInvalidConfig(
+  field: string,
+  value: unknown,
+  expected: string,
+  fallback: unknown,
+): void {
+  if (process.env["NODE_ENV"] !== "production") {
+    console.warn(
+      `[gracefulerrors] Invalid config: "${field}" must be ${expected} (got ${String(value)}). Using ${String(fallback)}.`,
+    );
+  }
+}
+
+function validateNumericConfig<TCode extends string, TField extends string>(
+  config: ErrorEngineConfig<TCode, TField>,
+): {
+  maxConcurrent: number | undefined;
+  maxQueue: number | undefined;
+  dedupeWindow: number | undefined;
+  aggWindow: number;
+  modalDismissTimeoutMs: number | undefined;
+} {
+  // maxConcurrent: positive integer
+  let maxConcurrent = config.maxConcurrent;
+  if (
+    maxConcurrent !== undefined &&
+    (!Number.isInteger(maxConcurrent) || maxConcurrent <= 0)
+  ) {
+    warnInvalidConfig("maxConcurrent", maxConcurrent, "a positive integer", 3);
+    maxConcurrent = 3;
+  }
+
+  // maxQueue: non-negative integer
+  let maxQueue = config.maxQueue;
+  if (maxQueue !== undefined && (!Number.isInteger(maxQueue) || maxQueue < 0)) {
+    warnInvalidConfig("maxQueue", maxQueue, "a non-negative integer", 25);
+    maxQueue = 25;
+  }
+
+  // dedupeWindow: non-negative finite number
+  let dedupeWindow = config.dedupeWindow;
+  if (
+    dedupeWindow !== undefined &&
+    (!isFinite(dedupeWindow) || dedupeWindow < 0)
+  ) {
+    warnInvalidConfig(
+      "dedupeWindow",
+      dedupeWindow,
+      "a non-negative number",
+      300,
+    );
+    dedupeWindow = 300;
+  }
+
+  // aggregation.window: non-negative finite number
+  let aggWindow = 300;
+  if (typeof config.aggregation === "object" && config.aggregation !== null) {
+    const rawWindow = config.aggregation.window;
+    if (rawWindow !== undefined) {
+      if (!isFinite(rawWindow) || rawWindow < 0) {
+        warnInvalidConfig(
+          "aggregation.window",
+          rawWindow,
+          "a non-negative number",
+          300,
+        );
+      } else {
+        aggWindow = rawWindow;
+      }
+    }
+  }
+
+  // modalDismissTimeoutMs: positive finite number
+  let modalDismissTimeoutMs = config.modalDismissTimeoutMs;
+  if (
+    modalDismissTimeoutMs !== undefined &&
+    (!isFinite(modalDismissTimeoutMs) || modalDismissTimeoutMs <= 0)
+  ) {
+    warnInvalidConfig(
+      "modalDismissTimeoutMs",
+      modalDismissTimeoutMs,
+      "a positive number",
+      "undefined (disabled)",
+    );
+    modalDismissTimeoutMs = undefined;
+  }
+
+  // Registry entry ttl: non-negative finite number
+  for (const [code, entry] of Object.entries(config.registry)) {
+    if (entry != null && (entry as { ttl?: number }).ttl !== undefined) {
+      const ttl = (entry as { ttl?: number }).ttl!;
+      if (!isFinite(ttl) || ttl < 0) {
+        warnInvalidConfig(
+          `registry["${code}"].ttl`,
+          ttl,
+          "a non-negative number",
+          "ignored",
+        );
+      }
+    }
+  }
+
+  return {
+    maxConcurrent,
+    maxQueue,
+    dedupeWindow,
+    aggWindow,
+    modalDismissTimeoutMs,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // createErrorEngine
 // ---------------------------------------------------------------------------
 
@@ -113,6 +228,15 @@ export function createErrorEngine<
   TCode extends string = string,
   TField extends string = string,
 >(config: ErrorEngineConfig<TCode, TField>): ErrorEngine<TCode> {
+  // ---- Init: validate numeric config ----
+  const {
+    maxConcurrent: resolvedMaxConcurrent,
+    maxQueue: resolvedMaxQueue,
+    dedupeWindow: resolvedDedupeWindow,
+    aggWindow: resolvedAggWindow,
+    modalDismissTimeoutMs: resolvedModalDismissTimeoutMs,
+  } = validateNumericConfig(config);
+
   // ---- Init: resolve normalizer pipeline ----
   let customNormalizers: Normalizer<TCode, TField>[];
   let resolvedBuiltIn: Normalizer<TCode, TField>;
@@ -144,9 +268,9 @@ export function createErrorEngine<
 
   // ---- Init: state manager ----
   const stateManager = createStateManager<TCode>({
-    maxConcurrent: config.maxConcurrent,
-    maxQueue: config.maxQueue,
-    dedupeWindow: config.dedupeWindow,
+    maxConcurrent: resolvedMaxConcurrent,
+    maxQueue: resolvedMaxQueue,
+    dedupeWindow: resolvedDedupeWindow,
     // StateManager only tracks TCode, not TField; ErrorSlot<TCode> stores AppError<TCode, string>.
     // The cast is safe at runtime because TField only affects the TypeScript type of context.field,
     // not the runtime value. Eliminating it would require threading TField through ErrorSlot/StateManager.
@@ -253,10 +377,7 @@ export function createErrorEngine<
         aggConfig === true ||
         (typeof aggConfig === "object" && aggConfig.enabled);
       if (aggEnabled) {
-        const aggWindow =
-          typeof aggConfig === "object" && aggConfig.window != null
-            ? aggConfig.window
-            : 300;
+        const aggWindow = resolvedAggWindow;
         const aggKey = action;
         const lastAgg = aggregationMap.get(aggKey);
         const now = Date.now();
@@ -303,14 +424,14 @@ export function createErrorEngine<
       if (action === "modal") {
         let dismissTimeoutId: ReturnType<typeof setTimeout> | undefined;
         if (
-          config.modalDismissTimeoutMs != null &&
+          resolvedModalDismissTimeoutMs != null &&
           process.env["NODE_ENV"] !== "production"
         ) {
           dismissTimeoutId = setTimeout(() => {
             console.warn(
-              `[gracefulerrors] Modal for "${String(current.code)}" was not dismissed within ${config.modalDismissTimeoutMs}ms. Ensure your adapter calls onDismiss().`,
+              `[gracefulerrors] Modal for "${String(current.code)}" was not dismissed within ${resolvedModalDismissTimeoutMs}ms. Ensure your adapter calls onDismiss().`,
             );
-          }, config.modalDismissTimeoutMs);
+          }, resolvedModalDismissTimeoutMs);
         }
         onDismiss = () => {
           if (dismissTimeoutId !== undefined) clearTimeout(dismissTimeoutId);
