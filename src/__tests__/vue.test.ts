@@ -12,13 +12,11 @@ import type { ErrorEngine, StateListener } from "../types";
 
 function makeEngine(overrides?: Partial<ErrorEngine>): ErrorEngine {
   return {
-    handle: vi
-      .fn()
-      .mockReturnValue({
-        handled: true,
-        error: { code: "ERR" },
-        uiAction: "toast",
-      }),
+    handle: vi.fn().mockReturnValue({
+      handled: true,
+      error: { code: "ERR" },
+      uiAction: "toast",
+    }),
     clear: vi.fn(),
     clearAll: vi.fn(),
     subscribe: vi.fn().mockReturnValue(() => {}),

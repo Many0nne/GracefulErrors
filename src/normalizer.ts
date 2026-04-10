@@ -28,9 +28,7 @@ function isAxiosError(raw: unknown): raw is {
 }
 
 // Detect structured custom error
-function isStructuredError(
-  raw: unknown,
-): raw is {
+function isStructuredError(raw: unknown): raw is {
   code: string;
   status?: number;
   message?: string;
