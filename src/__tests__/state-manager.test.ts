@@ -72,6 +72,22 @@ describe("Capacity", () => {
     expect(result).toBe("rejected");
     expect(onDropped).toHaveBeenCalledWith({ code: "C" }, "queue_overflow");
   });
+
+  it("default maxQueue (25) drops the 26th queued error with onDropped(queue_overflow)", () => {
+    const onDropped = vi.fn();
+    // maxConcurrent: 1 → slot 0 goes active, slots 1–25 fill the queue (25 items)
+    const sm = createStateManager({ maxConcurrent: 1, onDropped });
+    sm.enqueue(makeSlot("ACTIVE", "fp-active")); // goes active
+    for (let i = 0; i < 25; i++) {
+      sm.enqueue(makeSlot(`E${i}`, `fp-${i}`)); // fills queue to default limit
+    }
+    const result = sm.enqueue(makeSlot("OVERFLOW", "fp-overflow")); // 26th → rejected
+    expect(result).toBe("rejected");
+    expect(onDropped).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "OVERFLOW" }),
+      "queue_overflow",
+    );
+  });
 });
 
 describe("Queue promotion", () => {
