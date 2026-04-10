@@ -12,3 +12,4 @@ coverage/
 logs/
 demos/
 docs/
+.grepai/

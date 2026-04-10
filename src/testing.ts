@@ -1,6 +1,6 @@
-import { builtInNormalizer, runNormalizerPipeline } from './normalizer'
-import { createUIRouter } from './router'
-import { lookupEntry } from './registry'
+import { builtInNormalizer, runNormalizerPipeline } from "./normalizer";
+import { createUIRouter } from "./router";
+import { lookupEntry } from "./registry";
 import type {
   AppError,
   ErrorRegistry,
@@ -8,58 +8,64 @@ import type {
   HandleResult,
   Normalizer,
   UIAction,
-} from './types'
+} from "./types";
 
 export interface MockEngineCall<TCode extends string = string> {
-  error: AppError<TCode>
-  uiAction: UIAction | null
+  error: AppError<TCode>;
+  uiAction: UIAction | null;
 }
 
 export interface MockEngine<TCode extends string = string> {
-  handle(raw: unknown): HandleResult<TCode>
-  clear(code: TCode): void
-  clearAll(): void
-  subscribe(): () => void
-  calls: MockEngineCall<TCode>[]
-  reset(): void
+  handle(raw: unknown): HandleResult<TCode>;
+  clear(code: TCode): void;
+  clearAll(): void;
+  subscribe(): () => void;
+  calls: MockEngineCall<TCode>[];
+  reset(): void;
 }
 
-export interface MockEngineConfig<TCode extends string = string, TField extends string = string> {
-  registry?: ErrorRegistry<TCode>
-  fallback?: ErrorEngineConfig<TCode, TField>['fallback']
-  normalizers?: Normalizer<TCode, TField>[]
+export interface MockEngineConfig<
+  TCode extends string = string,
+  TField extends string = string,
+> {
+  registry?: ErrorRegistry<TCode>;
+  fallback?: ErrorEngineConfig<TCode, TField>["fallback"];
+  normalizers?: Normalizer<TCode, TField>[];
 }
 
-export function createMockEngine<TCode extends string = string, TField extends string = string>(
-  config: MockEngineConfig<TCode, TField> = {}
-): MockEngine<TCode> {
-  const registry = config.registry ?? ({} as ErrorRegistry<TCode>)
-  const router = createUIRouter<TCode, TField>()
-  const calls: MockEngineCall<TCode>[] = []
+export function createMockEngine<
+  TCode extends string = string,
+  TField extends string = string,
+>(config: MockEngineConfig<TCode, TField> = {}): MockEngine<TCode> {
+  const registry = config.registry ?? ({} as ErrorRegistry<TCode>);
+  const router = createUIRouter<TCode, TField>();
+  const calls: MockEngineCall<TCode>[] = [];
 
   function handle(raw: unknown): HandleResult<TCode> {
     const normalized = runNormalizerPipeline(
       raw,
       config.normalizers ?? [],
-      builtInNormalizer as unknown as Normalizer<TCode, TField>
-    ) as AppError<TCode, TField>
+      // builtInNormalizer returns AppError with open-ended string codes not constrained to TCode.
+      // The cast is safe because the normalizer pipeline accepts any string code.
+      builtInNormalizer as Normalizer<TCode, TField>,
+    ) as AppError<TCode, TField>;
 
-    const entry = lookupEntry(registry, normalized.code as TCode)
+    const entry = lookupEntry(registry, normalized.code as TCode);
 
     const uiAction = router.route(normalized, registry, {
       fallback: config.fallback,
       resolvedEntry: entry,
-    }) as UIAction
+    }) as UIAction;
 
     const result: HandleResult<TCode> = {
       handled: true,
       error: normalized,
-      uiAction: uiAction === 'silent' ? null : uiAction,
-    }
+      uiAction: uiAction === "silent" ? null : uiAction,
+    };
 
-    calls.push({ error: normalized, uiAction: result.uiAction })
+    calls.push({ error: normalized, uiAction: result.uiAction });
 
-    return result
+    return result;
   }
 
   return {
@@ -69,7 +75,7 @@ export function createMockEngine<TCode extends string = string, TField extends s
     subscribe: () => () => undefined,
     calls,
     reset() {
-      calls.length = 0
+      calls.length = 0;
     },
-  }
+  };
 }

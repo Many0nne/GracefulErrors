@@ -1,19 +1,19 @@
-import type { ErrorEngine } from './types'
+import type { ErrorEngine } from "./types";
 
 // Structural type — avoids importing axios at runtime.
 // Matches the AxiosInstance.interceptors.response shape.
 interface AxiosResponseInterceptorManager {
   use(
     onFulfilled: null | undefined,
-    onRejected: (error: unknown) => unknown
-  ): number
-  eject(id: number): void
+    onRejected: (error: unknown) => unknown,
+  ): number;
+  eject(id: number): void;
 }
 
 export interface AxiosLike {
   interceptors: {
-    response: AxiosResponseInterceptorManager
-  }
+    response: AxiosResponseInterceptorManager;
+  };
 }
 
 /**
@@ -30,20 +30,20 @@ export interface AxiosLike {
 export function createAxiosInterceptor(
   axiosInstance: AxiosLike,
   engine: ErrorEngine,
-  options: { mode?: 'throw' | 'handle' | 'silent' } = {}
+  options: { mode?: "throw" | "handle" | "silent" } = {},
 ): () => void {
-  const mode = options.mode ?? 'throw'
+  const mode = options.mode ?? "throw";
 
   const id = axiosInstance.interceptors.response.use(null, (error: unknown) => {
-    if (mode === 'silent') return Promise.reject(error)
+    if (mode === "silent") return Promise.reject(error);
 
-    engine.handle(error)
+    engine.handle(error);
 
-    if (mode === 'handle') return Promise.resolve(undefined)
+    if (mode === "handle") return Promise.resolve(undefined);
 
     // mode === 'throw'
-    return Promise.reject(error)
-  })
+    return Promise.reject(error);
+  });
 
-  return () => axiosInstance.interceptors.response.eject(id)
+  return () => axiosInstance.interceptors.response.eject(id);
 }
