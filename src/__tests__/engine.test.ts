@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createErrorEngine, createFetch } from "../engine";
 import type {
   AppError,
@@ -743,5 +743,220 @@ describe("HandleResult contract", () => {
     });
     const result = engine.handle(structuredNotFound);
     expect(result.error.message).toBe("overridden");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Config validation
+// ---------------------------------------------------------------------------
+
+describe("Config validation", () => {
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+  const originalEnv = process.env["NODE_ENV"];
+
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    process.env["NODE_ENV"] = "development";
+  });
+
+  afterEach(() => {
+    process.env["NODE_ENV"] = originalEnv;
+    warnSpy.mockRestore();
+  });
+
+  // maxConcurrent
+  it("maxConcurrent: -1 → warns and falls back to 3", () => {
+    const engine = makeEngine({ maxConcurrent: -1, dedupeWindow: 0 });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("maxConcurrent"),
+    );
+    // With default maxConcurrent=3, engine should accept up to 3 concurrent errors
+    const r1 = engine.handle({ code: "NOT_FOUND" });
+    expect(r1.handled).toBe(true);
+  });
+
+  it("maxConcurrent: 0 → warns and falls back to 3", () => {
+    makeEngine({ maxConcurrent: 0 });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("maxConcurrent"),
+    );
+  });
+
+  it("maxConcurrent: NaN → warns and falls back to 3", () => {
+    makeEngine({ maxConcurrent: Number.NaN });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("maxConcurrent"),
+    );
+  });
+
+  it("maxConcurrent: 2.5 → warns and falls back to 3", () => {
+    makeEngine({ maxConcurrent: 2.5 });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("maxConcurrent"),
+    );
+  });
+
+  it("maxConcurrent: valid positive integer → no warning", () => {
+    makeEngine({ maxConcurrent: 5 });
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("maxConcurrent"),
+    );
+  });
+
+  // maxQueue
+  it("maxQueue: -1 → warns and falls back to 25", () => {
+    makeEngine({ maxQueue: -1 });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("maxQueue"));
+  });
+
+  it("maxQueue: NaN → warns and falls back to 25", () => {
+    makeEngine({ maxQueue: Number.NaN });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("maxQueue"));
+  });
+
+  it("maxQueue: Infinity → warns and falls back to 25", () => {
+    makeEngine({ maxQueue: Infinity });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("maxQueue"));
+  });
+
+  it("maxQueue: 0 → no warning (0 is valid)", () => {
+    makeEngine({ maxQueue: 0 });
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("maxQueue"),
+    );
+  });
+
+  it("maxQueue: invalid → errors overflow queue and are rejected", () => {
+    // maxQueue falls back to 25, maxConcurrent to 1 — 2nd error goes to queue
+    const engine = makeEngine({
+      maxConcurrent: 1,
+      maxQueue: Number.NaN,
+      dedupeWindow: 0,
+    });
+    engine.handle({ code: "NOT_FOUND" }); // active
+    const queued = engine.handle({ code: "UNAUTHORIZED" }); // queued (maxQueue=25)
+    expect(queued.handled).toBe(true);
+  });
+
+  // dedupeWindow
+  it("dedupeWindow: NaN → warns and falls back to 300", () => {
+    makeEngine({ dedupeWindow: Number.NaN });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("dedupeWindow"),
+    );
+  });
+
+  it("dedupeWindow: -100 → warns and falls back to 300", () => {
+    makeEngine({ dedupeWindow: -100 });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("dedupeWindow"),
+    );
+  });
+
+  it("dedupeWindow: Infinity → warns and falls back to 300", () => {
+    makeEngine({ dedupeWindow: Infinity });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("dedupeWindow"),
+    );
+  });
+
+  it("dedupeWindow: 0 → no warning (0 disables dedupe)", () => {
+    makeEngine({ dedupeWindow: 0 });
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("dedupeWindow"),
+    );
+  });
+
+  // aggregation.window
+  it("aggregation.window: NaN → warns and falls back to 300", () => {
+    makeEngine({ aggregation: { enabled: true, window: Number.NaN } });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("aggregation.window"),
+    );
+  });
+
+  it("aggregation.window: -1 → warns and falls back to 300", () => {
+    makeEngine({ aggregation: { enabled: true, window: -1 } });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("aggregation.window"),
+    );
+  });
+
+  it("aggregation.window: valid → no warning", () => {
+    makeEngine({ aggregation: { enabled: true, window: 500 } });
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("aggregation.window"),
+    );
+  });
+
+  it("aggregation: true (boolean) → no warning", () => {
+    makeEngine({ aggregation: true });
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("aggregation"),
+    );
+  });
+
+  // modalDismissTimeoutMs
+  it("modalDismissTimeoutMs: NaN → warns and disables timeout", () => {
+    makeEngine({ modalDismissTimeoutMs: Number.NaN });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("modalDismissTimeoutMs"),
+    );
+  });
+
+  it("modalDismissTimeoutMs: -1 → warns and disables timeout", () => {
+    makeEngine({ modalDismissTimeoutMs: -1 });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("modalDismissTimeoutMs"),
+    );
+  });
+
+  it("modalDismissTimeoutMs: 0 → warns and disables timeout", () => {
+    makeEngine({ modalDismissTimeoutMs: 0 });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("modalDismissTimeoutMs"),
+    );
+  });
+
+  it("modalDismissTimeoutMs: valid → no warning", () => {
+    makeEngine({ modalDismissTimeoutMs: 2000 });
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("modalDismissTimeoutMs"),
+    );
+  });
+
+  // registry ttl
+  it("registry entry ttl: NaN → warns at engine creation", () => {
+    createErrorEngine({
+      registry: { NOT_FOUND: { ui: "toast", ttl: Number.NaN } },
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('registry["NOT_FOUND"].ttl'),
+    );
+  });
+
+  it("registry entry ttl: -1 → warns at engine creation", () => {
+    createErrorEngine({
+      registry: { NOT_FOUND: { ui: "toast", ttl: -1 } },
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('registry["NOT_FOUND"].ttl'),
+    );
+  });
+
+  it("registry entry ttl: 0 → no warning (0 is valid)", () => {
+    createErrorEngine({
+      registry: { NOT_FOUND: { ui: "toast", ttl: 0 } },
+    });
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("registry"),
+    );
+  });
+
+  // No warnings in production
+  it("invalid config in production → no warning emitted", () => {
+    process.env["NODE_ENV"] = "production";
+    makeEngine({ maxConcurrent: -1, maxQueue: -1, dedupeWindow: Number.NaN });
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 });

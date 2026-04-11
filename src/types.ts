@@ -71,6 +71,10 @@ export type UIAction = UIOptions["ui"];
 // Registry types
 export type ErrorRegistryEntry<TCode extends string = string> = {
   message?: string | ((error: AppError<TCode>) => string);
+  /**
+   * Time-to-live in milliseconds. The error is automatically dismissed after this duration.
+   * Must be a non-negative number. Invalid values are ignored (no TTL applied).
+   */
   ttl?: number;
 } & UIOptions;
 
@@ -202,9 +206,25 @@ export interface ErrorEngineConfig<
   // A warning is emitted in development.
   normalizer?: Normalizer<TCode, TField>;
   fingerprint?: (error: AppError<TCode, TField>) => string;
-  dedupeWindow?: number; // ms, default: 300
-  maxConcurrent?: number; // default: 3
-  maxQueue?: number; // default: 25
+  /**
+   * Deduplication window in milliseconds. Identical errors within this window are dropped.
+   * Must be a non-negative number. Default: 300.
+   */
+  dedupeWindow?: number;
+  /**
+   * Maximum number of errors that can be active (rendered) concurrently.
+   * Must be a positive integer. Default: 3.
+   */
+  maxConcurrent?: number;
+  /**
+   * Maximum number of errors that can be queued waiting for an active slot.
+   * Must be a non-negative integer. Default: 25.
+   */
+  maxQueue?: number;
+  /**
+   * Enable aggregation to suppress repeated errors within a time window.
+   * When an object, `window` must be a non-negative number (ms). Default window: 300.
+   */
   aggregation?: boolean | { enabled: boolean; window?: number };
   routingStrategy?: RoutingStrategy<TCode, TField>;
   transform?: (
@@ -222,6 +242,10 @@ export interface ErrorEngineConfig<
     reason: "dedupe" | "ttl_expired" | "queue_overflow",
   ) => void;
   debug?: boolean | { trace?: boolean };
+  /**
+   * Dev-mode timeout (ms) to warn when a modal is not dismissed.
+   * Must be a positive number. Invalid values disable the timeout.
+   */
   modalDismissTimeoutMs?: number;
   renderer?: RendererAdapter;
 }

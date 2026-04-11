@@ -106,6 +106,116 @@ function noOpNormalizer<C extends string, F extends string>(
 }
 
 // ---------------------------------------------------------------------------
+// Config validation
+// ---------------------------------------------------------------------------
+
+function warnInvalidConfig(
+  field: string,
+  value: unknown,
+  expected: string,
+  fallback: unknown,
+): void {
+  if (process.env["NODE_ENV"] !== "production") {
+    console.warn(
+      `[gracefulerrors] Invalid config: "${field}" must be ${expected} (got ${String(value)}). Using ${String(fallback)}.`,
+    );
+  }
+}
+
+function sanitizeNumeric(
+  value: number | undefined,
+  field: string,
+  isValid: (v: number) => boolean,
+  expected: string,
+  fallback: number | undefined,
+): number | undefined {
+  if (value === undefined || isValid(value)) return value;
+  warnInvalidConfig(field, value, expected, fallback ?? "undefined (disabled)");
+  return fallback;
+}
+
+function resolveAggWindow<TCode extends string, TField extends string>(
+  config: ErrorEngineConfig<TCode, TField>,
+): number {
+  const DEFAULT = 300;
+  if (typeof config.aggregation !== "object" || config.aggregation === null) {
+    return DEFAULT;
+  }
+  const rawWindow = config.aggregation.window;
+  if (rawWindow === undefined) return DEFAULT;
+  if (!Number.isFinite(rawWindow) || rawWindow < 0) {
+    warnInvalidConfig(
+      "aggregation.window",
+      rawWindow,
+      "a non-negative number",
+      DEFAULT,
+    );
+    return DEFAULT;
+  }
+  return rawWindow;
+}
+
+function validateRegistryTtls<TCode extends string, TField extends string>(
+  registry: ErrorEngineConfig<TCode, TField>["registry"],
+): void {
+  for (const [code, entry] of Object.entries(registry)) {
+    const ttl = (entry as { ttl?: number } | null)?.ttl;
+    if (ttl !== undefined && (!Number.isFinite(ttl) || ttl < 0)) {
+      warnInvalidConfig(
+        `registry["${code}"].ttl`,
+        ttl,
+        "a non-negative number",
+        "ignored",
+      );
+    }
+  }
+}
+
+function validateNumericConfig<TCode extends string, TField extends string>(
+  config: ErrorEngineConfig<TCode, TField>,
+): {
+  maxConcurrent: number | undefined;
+  maxQueue: number | undefined;
+  dedupeWindow: number | undefined;
+  aggWindow: number;
+  modalDismissTimeoutMs: number | undefined;
+} {
+  validateRegistryTtls(config.registry);
+
+  return {
+    maxConcurrent: sanitizeNumeric(
+      config.maxConcurrent,
+      "maxConcurrent",
+      (v) => Number.isInteger(v) && v > 0,
+      "a positive integer",
+      3,
+    ),
+    maxQueue: sanitizeNumeric(
+      config.maxQueue,
+      "maxQueue",
+      (v) => Number.isInteger(v) && v >= 0,
+      "a non-negative integer",
+      25,
+    ),
+    dedupeWindow: sanitizeNumeric(
+      config.dedupeWindow,
+      "dedupeWindow",
+      (v) => Number.isFinite(v) && v >= 0,
+      "a non-negative number",
+      300,
+    ),
+    aggWindow: resolveAggWindow(config),
+    modalDismissTimeoutMs: sanitizeNumeric(
+      config.modalDismissTimeoutMs,
+      "modalDismissTimeoutMs",
+      (v) => Number.isFinite(v) && v > 0,
+      "a positive number",
+      undefined,
+    ),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // createErrorEngine
 // ---------------------------------------------------------------------------
 
@@ -113,6 +223,15 @@ export function createErrorEngine<
   TCode extends string = string,
   TField extends string = string,
 >(config: ErrorEngineConfig<TCode, TField>): ErrorEngine<TCode> {
+  // ---- Init: validate numeric config ----
+  const {
+    maxConcurrent: resolvedMaxConcurrent,
+    maxQueue: resolvedMaxQueue,
+    dedupeWindow: resolvedDedupeWindow,
+    aggWindow: resolvedAggWindow,
+    modalDismissTimeoutMs: resolvedModalDismissTimeoutMs,
+  } = validateNumericConfig(config);
+
   // ---- Init: resolve normalizer pipeline ----
   let customNormalizers: Normalizer<TCode, TField>[];
   let resolvedBuiltIn: Normalizer<TCode, TField>;
@@ -144,9 +263,9 @@ export function createErrorEngine<
 
   // ---- Init: state manager ----
   const stateManager = createStateManager<TCode>({
-    maxConcurrent: config.maxConcurrent,
-    maxQueue: config.maxQueue,
-    dedupeWindow: config.dedupeWindow,
+    maxConcurrent: resolvedMaxConcurrent,
+    maxQueue: resolvedMaxQueue,
+    dedupeWindow: resolvedDedupeWindow,
     // StateManager only tracks TCode, not TField; ErrorSlot<TCode> stores AppError<TCode, string>.
     // The cast is safe at runtime because TField only affects the TypeScript type of context.field,
     // not the runtime value. Eliminating it would require threading TField through ErrorSlot/StateManager.
@@ -253,10 +372,7 @@ export function createErrorEngine<
         aggConfig === true ||
         (typeof aggConfig === "object" && aggConfig.enabled);
       if (aggEnabled) {
-        const aggWindow =
-          typeof aggConfig === "object" && aggConfig.window != null
-            ? aggConfig.window
-            : 300;
+        const aggWindow = resolvedAggWindow;
         const aggKey = action;
         const lastAgg = aggregationMap.get(aggKey);
         const now = Date.now();
@@ -303,14 +419,14 @@ export function createErrorEngine<
       if (action === "modal") {
         let dismissTimeoutId: ReturnType<typeof setTimeout> | undefined;
         if (
-          config.modalDismissTimeoutMs != null &&
+          resolvedModalDismissTimeoutMs != null &&
           process.env["NODE_ENV"] !== "production"
         ) {
           dismissTimeoutId = setTimeout(() => {
             console.warn(
-              `[gracefulerrors] Modal for "${String(current.code)}" was not dismissed within ${config.modalDismissTimeoutMs}ms. Ensure your adapter calls onDismiss().`,
+              `[gracefulerrors] Modal for "${String(current.code)}" was not dismissed within ${resolvedModalDismissTimeoutMs}ms. Ensure your adapter calls onDismiss().`,
             );
-          }, config.modalDismissTimeoutMs);
+          }, resolvedModalDismissTimeoutMs);
         }
         onDismiss = () => {
           if (dismissTimeoutId !== undefined) clearTimeout(dismissTimeoutId);
