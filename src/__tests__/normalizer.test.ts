@@ -10,7 +10,7 @@ describe("builtInNormalizer", () => {
   it("AbortError → returns null", () => {
     const err = new Error("aborted");
     err.name = "AbortError";
-    expect(builtInNormalizer(err, null)).toBeNull();
+    expect(builtInNormalizer(err)).toBeNull();
   });
 
   it("HTTP Response 404 with JSON body → correct AppError", async () => {
@@ -22,7 +22,7 @@ describe("builtInNormalizer", () => {
         statusText: "Not Found",
       },
     );
-    const result = builtInNormalizer(response, null);
+    const result = builtInNormalizer(response);
     expect(result).not.toBeNull();
     expect(result!.status).toBe(404);
     // sync fallback uses HTTP_404
@@ -35,7 +35,7 @@ describe("builtInNormalizer", () => {
       status: 500,
       statusText: "Internal Server Error",
     });
-    const result = builtInNormalizer(response, null);
+    const result = builtInNormalizer(response);
     expect(result).not.toBeNull();
     expect(result!.code).toBe("HTTP_500");
     expect(result!.status).toBe(500);
@@ -51,7 +51,7 @@ describe("builtInNormalizer", () => {
       config: {},
       message: "Request failed with status code 401",
     };
-    const result = builtInNormalizer(axiosError, null);
+    const result = builtInNormalizer(axiosError);
     expect(result).not.toBeNull();
     expect(result!.code).toBe("UNAUTHORIZED");
     expect(result!.status).toBe(401);
@@ -60,7 +60,7 @@ describe("builtInNormalizer", () => {
 
   it("Structured object { code, message } → maps directly", () => {
     const structured = { code: "MY_ERROR", message: "oops" };
-    const result = builtInNormalizer(structured, null);
+    const result = builtInNormalizer(structured);
     expect(result).not.toBeNull();
     expect(result!.code).toBe("MY_ERROR");
     expect(result!.message).toBe("oops");
@@ -69,19 +69,19 @@ describe("builtInNormalizer", () => {
 
   it("TypeError: Failed to fetch → code NETWORK_ERROR", () => {
     const err = new TypeError("Failed to fetch");
-    const result = builtInNormalizer(err, null);
+    const result = builtInNormalizer(err);
     expect(result).not.toBeNull();
     expect(result!.code).toBe("NETWORK_ERROR");
     expect(result!.raw).toBe(err);
   });
 
   it("Unknown string → returns null", () => {
-    expect(builtInNormalizer("something weird", null)).toBeNull();
+    expect(builtInNormalizer("something weird")).toBeNull();
   });
 
   it("raw is always preserved in output .raw", () => {
     const err = new TypeError("network");
-    const result = builtInNormalizer(err, null);
+    const result = builtInNormalizer(err);
     expect(result!.raw).toBe(err);
   });
 });
