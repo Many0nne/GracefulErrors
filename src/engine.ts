@@ -29,7 +29,7 @@ function isSuppressionDecision(
     result !== null &&
     typeof result === "object" &&
     "suppress" in result &&
-    (result as SuppressionDecision).suppress === true
+    result.suppress === true
   );
 }
 
@@ -324,12 +324,12 @@ export function createErrorEngine<
         safeCall(config.onSuppressed, normalized, transformResult.reason);
         return { handled: false, error: normalized, uiAction: null };
       }
-      current = transformResult as AppError<TCode, TField>;
+      current = transformResult;
     }
 
     // Step 6: fingerprint
     const fingerprint = config.fingerprint
-      ? config.fingerprint(current as AppError<TCode, TField>)
+      ? config.fingerprint(current)
       : defaultFingerprint(current);
 
     // Step 7: registry lookup + route
@@ -533,4 +533,4 @@ export function createFetch(
   };
 }
 
-export type { ErrorEngine, ErrorEngineConfig, HandleResult };
+export type { ErrorEngine, ErrorEngineConfig, HandleResult } from "./types";

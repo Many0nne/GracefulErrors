@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type { ErrorEngine, AppError, StateListener } from "./types";
 
 export const ErrorEngineContext = createContext<{ engine: ErrorEngine } | null>(
@@ -11,11 +17,13 @@ export function ErrorEngineProvider<TCode extends string = string>({
   engine,
   children,
 }: {
-  engine: ErrorEngine<TCode>;
-  children: React.ReactNode;
+  readonly engine: ErrorEngine<TCode>;
+  readonly children: React.ReactNode;
 }): JSX.Element {
+  const contextValue = useMemo(() => ({ engine }), [engine]);
+
   return (
-    <ErrorEngineContext.Provider value={{ engine }}>
+    <ErrorEngineContext.Provider value={contextValue}>
       {children}
     </ErrorEngineContext.Provider>
   );
@@ -69,7 +77,7 @@ export class ErrorBoundaryWithEngine extends React.Component<
   { children: React.ReactNode; fallback: React.ReactNode },
   { hasError: boolean }
 > {
-  static contextType = ErrorEngineContext;
+  static readonly contextType = ErrorEngineContext;
   declare context: React.ContextType<typeof ErrorEngineContext>;
 
   state = { hasError: false };

@@ -1,6 +1,7 @@
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { RendererAdapter, RenderIntent } from "../types";
 import { resolveMessage } from "../registry";
 
@@ -13,9 +14,9 @@ function ModalDialog({
   dismissible,
   onDismiss,
 }: {
-  message: string;
-  dismissible: boolean;
-  onDismiss: () => void;
+  readonly message: string;
+  readonly dismissible: boolean;
+  readonly onDismiss: () => void;
 }) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -24,6 +25,14 @@ function ModalDialog({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onDismiss]);
+
+  const handleBackdropKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!dismissible) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onDismiss();
+    }
+  };
 
   return (
     <div
@@ -36,7 +45,11 @@ function ModalDialog({
         justifyContent: "center",
         zIndex: 9999,
       }}
+      role={dismissible ? "button" : undefined}
+      tabIndex={dismissible ? 0 : undefined}
+      aria-label={dismissible ? "Dismiss modal overlay" : undefined}
       onClick={dismissible ? onDismiss : undefined}
+      onKeyDown={dismissible ? handleBackdropKeyDown : undefined}
     >
       <div
         style={{
@@ -130,7 +143,7 @@ export function createHotToastAdapter(): RendererAdapter {
           activeModalRoots.delete(key);
           root.unmount();
           if (document.body.contains(container)) {
-            document.body.removeChild(container);
+            container.remove();
           }
           lifecycle.onDismiss?.();
         };
@@ -162,8 +175,7 @@ export function createHotToastAdapter(): RendererAdapter {
     const modal = activeModalRoots.get(code);
     if (modal !== undefined) {
       modal.root.unmount();
-      if (document.body.contains(modal.container))
-        document.body.removeChild(modal.container);
+      if (document.body.contains(modal.container)) modal.container.remove();
       activeModalRoots.delete(code);
     }
   }
@@ -173,8 +185,7 @@ export function createHotToastAdapter(): RendererAdapter {
     activeToastIds.clear();
     for (const { root, container } of activeModalRoots.values()) {
       root.unmount();
-      if (document.body.contains(container))
-        document.body.removeChild(container);
+      if (document.body.contains(container)) container.remove();
     }
     activeModalRoots.clear();
   }
@@ -182,4 +193,4 @@ export function createHotToastAdapter(): RendererAdapter {
   return { render, clear, clearAll };
 }
 
-export { Toaster as HotToaster };
+export { Toaster as HotToaster } from "react-hot-toast";

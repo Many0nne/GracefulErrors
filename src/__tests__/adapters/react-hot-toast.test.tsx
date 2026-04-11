@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { createHotToastAdapter } from "../../adapters/react-hot-toast";
 import type { RenderIntent } from "../../types";
 
@@ -195,6 +196,47 @@ describe("createHotToastAdapter — modal", () => {
     const adapter = createHotToastAdapter();
     adapter.render(makeIntent({ ui: "modal", entry: { ui: "modal" } }), {});
     expect(mockRender).toHaveBeenCalled();
+  });
+
+  it("dismissible modal backdrop is keyboard-focusable and Enter dismisses", () => {
+    const adapter = createHotToastAdapter();
+    const onDismiss = vi.fn();
+
+    adapter.render(makeIntent({ ui: "modal", entry: { ui: "modal" } }), {
+      onDismiss,
+    });
+
+    const renderedTree = mockRender.mock.calls[0]?.[0];
+    expect(renderedTree).toBeTruthy();
+    render(renderedTree);
+
+    const backdrop = screen.getByRole("button", {
+      name: "Dismiss modal overlay",
+    });
+    expect(backdrop.getAttribute("tabindex")).toBe("0");
+
+    fireEvent.keyDown(backdrop, { key: "Enter" });
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("non-dismissible modal backdrop is not keyboard interactive", () => {
+    const adapter = createHotToastAdapter();
+
+    adapter.render(
+      makeIntent({
+        ui: "modal",
+        entry: { ui: "modal", uiOptions: { dismissible: false } },
+      }),
+      {},
+    );
+
+    const renderedTree = mockRender.mock.calls[0]?.[0];
+    expect(renderedTree).toBeTruthy();
+    render(renderedTree);
+
+    expect(
+      screen.queryByRole("button", { name: "Dismiss modal overlay" }),
+    ).toBeNull();
   });
 
   it("ui === inline → no-op, no toast call", () => {

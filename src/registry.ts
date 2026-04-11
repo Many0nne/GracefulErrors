@@ -30,4 +30,8 @@ export function mergeRegistries<TBase extends string, TExtended extends string>(
   return { ...base, ...override } as ErrorRegistry<TBase | TExtended>;
 }
 
-export type { ErrorRegistry, ErrorRegistryEntry, ErrorRegistryEntryFull };
+export type {
+  ErrorRegistry,
+  ErrorRegistryEntry,
+  ErrorRegistryEntryFull,
+} from "./types";

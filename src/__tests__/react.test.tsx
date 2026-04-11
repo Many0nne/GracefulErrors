@@ -115,7 +115,7 @@ describe("useFieldError", () => {
     listeners.forEach((l) => l(event));
   }
 
-  function FieldConsumer({ field }: { field: string }) {
+  function FieldConsumer({ field }: { readonly field: string }) {
     const { error } = useFieldError(field);
     return <div data-testid="error">{error ? error.code : "none"}</div>;
   }
@@ -247,7 +247,7 @@ describe("ErrorBoundaryWithEngine", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  function ThrowingChild({ shouldThrow }: { shouldThrow: boolean }) {
+  function ThrowingChild({ shouldThrow }: { readonly shouldThrow: boolean }) {
     if (shouldThrow) throw new Error("boom");
     return <div>OK</div>;
   }

@@ -59,7 +59,7 @@ export function builtInNormalizer(raw: unknown): AppError | null {
     const status = response?.status;
     const data = response?.data;
     let code: string =
-      status != null ? `HTTP_${status}` : "GRACEFULERRORS_UNKNOWN";
+      status == null ? "GRACEFULERRORS_UNKNOWN" : `HTTP_${status}`;
     let message: string | undefined;
 
     if (data != null && typeof data === "object") {

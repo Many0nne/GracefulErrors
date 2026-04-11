@@ -4,8 +4,8 @@ import { mount } from "@vue/test-utils";
 import {
   createErrorEnginePlugin,
   provideErrorEngine,
-  useErrorEngine,
-  useFieldError,
+  useErrorEngine as readErrorEngine,
+  useFieldError as readFieldError,
   ErrorBoundaryWithEngine,
 } from "../vue";
 import type { ErrorEngine, StateListener } from "../types";
@@ -24,6 +24,32 @@ function makeEngine(overrides?: Partial<ErrorEngine>): ErrorEngine {
   };
 }
 
+function makeFieldConsumer(field: string) {
+  return defineComponent({
+    setup() {
+      const { error } = readFieldError(field);
+      return () =>
+        h(
+          "div",
+          { "data-testid": "error" },
+          error.value ? error.value.code : "none",
+        );
+    },
+  });
+}
+
+function wrapWithProvider(
+  engine: ErrorEngine,
+  child: ReturnType<typeof defineComponent>,
+) {
+  return defineComponent({
+    setup() {
+      provideErrorEngine(engine);
+      return () => h(child);
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // createErrorEnginePlugin + useErrorEngine
 // ---------------------------------------------------------------------------
@@ -35,7 +61,7 @@ describe("createErrorEnginePlugin + useErrorEngine", () => {
 
     const Consumer = defineComponent({
       setup() {
-        captured = useErrorEngine();
+        captured = readErrorEngine();
         return () => null;
       },
     });
@@ -59,7 +85,7 @@ describe("provideErrorEngine + useErrorEngine", () => {
 
     const Consumer = defineComponent({
       setup() {
-        captured = useErrorEngine();
+        captured = readErrorEngine();
         return () => null;
       },
     });
@@ -86,7 +112,7 @@ describe("provideErrorEngine + useErrorEngine", () => {
 
     const Consumer = defineComponent({
       setup() {
-        captured = useErrorEngine();
+        captured = readErrorEngine();
         return () => null;
       },
     });
@@ -124,32 +150,6 @@ describe("useFieldError", () => {
 
   function emit(event: Parameters<StateListener>[0]) {
     listeners.forEach((l) => l(event));
-  }
-
-  function makeFieldConsumer(field: string) {
-    return defineComponent({
-      setup() {
-        const { error } = useFieldError(field);
-        return () =>
-          h(
-            "div",
-            { "data-testid": "error" },
-            error.value ? error.value.code : "none",
-          );
-      },
-    });
-  }
-
-  function wrapWithProvider(
-    engine: ErrorEngine,
-    child: ReturnType<typeof defineComponent>,
-  ) {
-    return defineComponent({
-      setup() {
-        provideErrorEngine(engine);
-        return () => h(child);
-      },
-    });
   }
 
   it("initial state — returns null", () => {

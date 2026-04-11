@@ -40,7 +40,7 @@ describe("createFetch + engine — lifecycle hooks", () => {
       onRouted: () => order.push("onRouted"),
     });
 
-    vi.spyOn(global, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 404, statusText: "Not Found" }),
     );
 
@@ -63,7 +63,7 @@ describe("createFetch + engine — lifecycle hooks", () => {
       onRouted: () => order.push("onRouted"),
     });
 
-    vi.spyOn(global, "fetch").mockRejectedValue(
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
       new TypeError("Failed to fetch"),
     );
 
@@ -91,7 +91,7 @@ describe("createFetch + engine — normalisation", () => {
         normalised.push({ code: err.code, status: err.status }),
     });
 
-    vi.spyOn(global, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 404 }),
     );
 
@@ -111,7 +111,7 @@ describe("createFetch + engine — normalisation", () => {
       onNormalized: (err) => normalised.push({ code: err.code }),
     });
 
-    vi.spyOn(global, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 500 }),
     );
 
@@ -130,7 +130,7 @@ describe("createFetch + engine — normalisation", () => {
         normalised.push({ code: err.code, message: err.message }),
     });
 
-    vi.spyOn(global, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({ code: "VALIDATION_ERROR", message: "Invalid input" }),
         { status: 422, headers: { "Content-Type": "application/json" } },
@@ -154,7 +154,7 @@ describe("createFetch + engine — normalisation", () => {
       onNormalized: (err) => normalised.push({ code: err.code }),
     });
 
-    vi.spyOn(global, "fetch").mockRejectedValue(
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
       new TypeError("Failed to fetch"),
     );
 
@@ -178,7 +178,7 @@ describe("createFetch + engine — adapter integration", () => {
       renderer: adapter,
     });
 
-    vi.spyOn(global, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 404 }),
     );
 
@@ -200,7 +200,7 @@ describe("createFetch + engine — adapter integration", () => {
       onError,
     });
 
-    vi.spyOn(global, "fetch").mockRejectedValue(
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
       new DOMException("Aborted", "AbortError"),
     );
 

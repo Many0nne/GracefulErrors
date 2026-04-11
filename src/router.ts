@@ -71,4 +71,4 @@ export function createUIRouter<
   return { route };
 }
 
-export type { UIRouter };
+export type { UIRouter } from "./types";
