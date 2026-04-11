@@ -122,6 +122,55 @@ function warnInvalidConfig(
   }
 }
 
+function sanitizeNumeric(
+  value: number | undefined,
+  field: string,
+  isValid: (v: number) => boolean,
+  expected: string,
+  fallback: number | undefined,
+): number | undefined {
+  if (value === undefined || isValid(value)) return value;
+  warnInvalidConfig(field, value, expected, fallback ?? "undefined (disabled)");
+  return fallback;
+}
+
+function resolveAggWindow<TCode extends string, TField extends string>(
+  config: ErrorEngineConfig<TCode, TField>,
+): number {
+  const DEFAULT = 300;
+  if (typeof config.aggregation !== "object" || config.aggregation === null) {
+    return DEFAULT;
+  }
+  const rawWindow = config.aggregation.window;
+  if (rawWindow === undefined) return DEFAULT;
+  if (!Number.isFinite(rawWindow) || rawWindow < 0) {
+    warnInvalidConfig(
+      "aggregation.window",
+      rawWindow,
+      "a non-negative number",
+      DEFAULT,
+    );
+    return DEFAULT;
+  }
+  return rawWindow;
+}
+
+function validateRegistryTtls<TCode extends string, TField extends string>(
+  registry: ErrorEngineConfig<TCode, TField>["registry"],
+): void {
+  for (const [code, entry] of Object.entries(registry)) {
+    const ttl = (entry as { ttl?: number } | null)?.ttl;
+    if (ttl !== undefined && (!Number.isFinite(ttl) || ttl < 0)) {
+      warnInvalidConfig(
+        `registry["${code}"].ttl`,
+        ttl,
+        "a non-negative number",
+        "ignored",
+      );
+    }
+  }
+}
+
 function validateNumericConfig<TCode extends string, TField extends string>(
   config: ErrorEngineConfig<TCode, TField>,
 ): {
@@ -131,92 +180,38 @@ function validateNumericConfig<TCode extends string, TField extends string>(
   aggWindow: number;
   modalDismissTimeoutMs: number | undefined;
 } {
-  // maxConcurrent: positive integer
-  let maxConcurrent = config.maxConcurrent;
-  if (
-    maxConcurrent !== undefined &&
-    (!Number.isInteger(maxConcurrent) || maxConcurrent <= 0)
-  ) {
-    warnInvalidConfig("maxConcurrent", maxConcurrent, "a positive integer", 3);
-    maxConcurrent = 3;
-  }
-
-  // maxQueue: non-negative integer
-  let maxQueue = config.maxQueue;
-  if (maxQueue !== undefined && (!Number.isInteger(maxQueue) || maxQueue < 0)) {
-    warnInvalidConfig("maxQueue", maxQueue, "a non-negative integer", 25);
-    maxQueue = 25;
-  }
-
-  // dedupeWindow: non-negative finite number
-  let dedupeWindow = config.dedupeWindow;
-  if (
-    dedupeWindow !== undefined &&
-    (!isFinite(dedupeWindow) || dedupeWindow < 0)
-  ) {
-    warnInvalidConfig(
-      "dedupeWindow",
-      dedupeWindow,
-      "a non-negative number",
-      300,
-    );
-    dedupeWindow = 300;
-  }
-
-  // aggregation.window: non-negative finite number
-  let aggWindow = 300;
-  if (typeof config.aggregation === "object" && config.aggregation !== null) {
-    const rawWindow = config.aggregation.window;
-    if (rawWindow !== undefined) {
-      if (!isFinite(rawWindow) || rawWindow < 0) {
-        warnInvalidConfig(
-          "aggregation.window",
-          rawWindow,
-          "a non-negative number",
-          300,
-        );
-      } else {
-        aggWindow = rawWindow;
-      }
-    }
-  }
-
-  // modalDismissTimeoutMs: positive finite number
-  let modalDismissTimeoutMs = config.modalDismissTimeoutMs;
-  if (
-    modalDismissTimeoutMs !== undefined &&
-    (!isFinite(modalDismissTimeoutMs) || modalDismissTimeoutMs <= 0)
-  ) {
-    warnInvalidConfig(
-      "modalDismissTimeoutMs",
-      modalDismissTimeoutMs,
-      "a positive number",
-      "undefined (disabled)",
-    );
-    modalDismissTimeoutMs = undefined;
-  }
-
-  // Registry entry ttl: non-negative finite number
-  for (const [code, entry] of Object.entries(config.registry)) {
-    if (entry != null && (entry as { ttl?: number }).ttl !== undefined) {
-      const ttl = (entry as { ttl?: number }).ttl!;
-      if (!isFinite(ttl) || ttl < 0) {
-        warnInvalidConfig(
-          `registry["${code}"].ttl`,
-          ttl,
-          "a non-negative number",
-          "ignored",
-        );
-      }
-    }
-  }
+  validateRegistryTtls(config.registry);
 
   return {
-    maxConcurrent,
-    maxQueue,
-    dedupeWindow,
-    aggWindow,
-    modalDismissTimeoutMs,
+    maxConcurrent: sanitizeNumeric(
+      config.maxConcurrent,
+      "maxConcurrent",
+      (v) => Number.isInteger(v) && v > 0,
+      "a positive integer",
+      3,
+    ),
+    maxQueue: sanitizeNumeric(
+      config.maxQueue,
+      "maxQueue",
+      (v) => Number.isInteger(v) && v >= 0,
+      "a non-negative integer",
+      25,
+    ),
+    dedupeWindow: sanitizeNumeric(
+      config.dedupeWindow,
+      "dedupeWindow",
+      (v) => Number.isFinite(v) && v >= 0,
+      "a non-negative number",
+      300,
+    ),
+    aggWindow: resolveAggWindow(config),
+    modalDismissTimeoutMs: sanitizeNumeric(
+      config.modalDismissTimeoutMs,
+      "modalDismissTimeoutMs",
+      (v) => Number.isFinite(v) && v > 0,
+      "a positive number",
+      undefined,
+    ),
   };
 }
 

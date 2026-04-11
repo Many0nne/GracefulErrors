@@ -783,7 +783,7 @@ describe("Config validation", () => {
   });
 
   it("maxConcurrent: NaN → warns and falls back to 3", () => {
-    makeEngine({ maxConcurrent: NaN });
+    makeEngine({ maxConcurrent: Number.NaN });
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("maxConcurrent"),
     );
@@ -810,7 +810,7 @@ describe("Config validation", () => {
   });
 
   it("maxQueue: NaN → warns and falls back to 25", () => {
-    makeEngine({ maxQueue: NaN });
+    makeEngine({ maxQueue: Number.NaN });
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("maxQueue"));
   });
 
@@ -830,7 +830,7 @@ describe("Config validation", () => {
     // maxQueue falls back to 25, maxConcurrent to 1 — 2nd error goes to queue
     const engine = makeEngine({
       maxConcurrent: 1,
-      maxQueue: NaN,
+      maxQueue: Number.NaN,
       dedupeWindow: 0,
     });
     engine.handle({ code: "NOT_FOUND" }); // active
@@ -840,7 +840,7 @@ describe("Config validation", () => {
 
   // dedupeWindow
   it("dedupeWindow: NaN → warns and falls back to 300", () => {
-    makeEngine({ dedupeWindow: NaN });
+    makeEngine({ dedupeWindow: Number.NaN });
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("dedupeWindow"),
     );
@@ -869,7 +869,7 @@ describe("Config validation", () => {
 
   // aggregation.window
   it("aggregation.window: NaN → warns and falls back to 300", () => {
-    makeEngine({ aggregation: { enabled: true, window: NaN } });
+    makeEngine({ aggregation: { enabled: true, window: Number.NaN } });
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("aggregation.window"),
     );
@@ -898,7 +898,7 @@ describe("Config validation", () => {
 
   // modalDismissTimeoutMs
   it("modalDismissTimeoutMs: NaN → warns and disables timeout", () => {
-    makeEngine({ modalDismissTimeoutMs: NaN });
+    makeEngine({ modalDismissTimeoutMs: Number.NaN });
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("modalDismissTimeoutMs"),
     );
@@ -928,7 +928,7 @@ describe("Config validation", () => {
   // registry ttl
   it("registry entry ttl: NaN → warns at engine creation", () => {
     createErrorEngine({
-      registry: { NOT_FOUND: { ui: "toast", ttl: NaN } },
+      registry: { NOT_FOUND: { ui: "toast", ttl: Number.NaN } },
     });
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('registry["NOT_FOUND"].ttl'),
@@ -956,7 +956,7 @@ describe("Config validation", () => {
   // No warnings in production
   it("invalid config in production → no warning emitted", () => {
     process.env["NODE_ENV"] = "production";
-    makeEngine({ maxConcurrent: -1, maxQueue: -1, dedupeWindow: NaN });
+    makeEngine({ maxConcurrent: -1, maxQueue: -1, dedupeWindow: Number.NaN });
     expect(warnSpy).not.toHaveBeenCalled();
   });
 });
