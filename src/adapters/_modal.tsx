@@ -36,19 +36,6 @@ export function ModalDialog({
         zIndex: 9999,
       }}
     >
-      {dismissible && (
-        <button
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-          }}
-          aria-label="Dismiss modal overlay"
-          onClick={onDismiss}
-        />
-      )}
       <div
         style={{
           background: "white",
@@ -57,6 +44,7 @@ export function ModalDialog({
           minWidth: 300,
           maxWidth: 500,
           position: "relative",
+          zIndex: 1,
         }}
       >
         <p style={{ margin: "0 0 16px" }}>{message}</p>
@@ -64,6 +52,25 @@ export function ModalDialog({
           Dismiss
         </button>
       </div>
+      {dismissible && (
+        <button
+          type="button"
+          tabIndex={0}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            zIndex: 0,
+          }}
+          aria-label="Dismiss modal overlay"
+          onClick={onDismiss}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onDismiss();
+          }}
+        />
+      )}
     </div>
   );
 }
