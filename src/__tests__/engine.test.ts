@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type MockInstance,
+} from "vitest";
 import { createErrorEngine, createFetch } from "../engine";
 import type {
   AppError,
@@ -465,7 +473,7 @@ describe("createFetch", () => {
     const engine = makeEngine();
     const handleSpy = vi.spyOn(engine, "handle");
     const mockResponse = new Response(null, { status: 404 });
-    vi.spyOn(global, "fetch").mockResolvedValue(mockResponse);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(mockResponse);
 
     const fetcher = createFetch(engine, { mode: "throw" });
     await expect(fetcher("http://test")).rejects.toThrow();
@@ -475,7 +483,7 @@ describe("createFetch", () => {
   it("handle mode: 4xx → engine.handle() called + resolves undefined", async () => {
     const engine = makeEngine();
     const handleSpy = vi.spyOn(engine, "handle");
-    vi.spyOn(global, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 500 }),
     );
 
@@ -495,7 +503,7 @@ describe("createFetch", () => {
         headers: { "Content-Type": "application/json" },
       },
     );
-    vi.spyOn(global, "fetch").mockResolvedValue(response);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
 
     const fetcher = createFetch(engine, { mode: "handle" });
     const result = await fetcher("http://test");
@@ -514,7 +522,7 @@ describe("createFetch", () => {
     const engine = makeEngine();
     const handleSpy = vi.spyOn(engine, "handle");
     const mockResponse = new Response(null, { status: 400 });
-    vi.spyOn(global, "fetch").mockResolvedValue(mockResponse);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(mockResponse);
 
     const fetcher = createFetch(engine, { mode: "silent" });
     const result = await fetcher("http://test");
@@ -526,7 +534,7 @@ describe("createFetch", () => {
     const engine = makeEngine();
     const handleSpy = vi.spyOn(engine, "handle");
     const mockResponse = new Response("ok", { status: 200 });
-    vi.spyOn(global, "fetch").mockResolvedValue(mockResponse);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(mockResponse);
 
     const fetcher = createFetch(engine, { mode: "throw" });
     const result = await fetcher("http://test");
@@ -538,7 +546,7 @@ describe("createFetch", () => {
     const engine = makeEngine();
     const handleSpy = vi.spyOn(engine, "handle");
     const abortError = new DOMException("Aborted", "AbortError");
-    vi.spyOn(global, "fetch").mockRejectedValue(abortError);
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(abortError);
 
     const fetcher = createFetch(engine, { mode: "handle" });
     await expect(fetcher("http://test")).rejects.toThrow("Aborted");
@@ -549,7 +557,7 @@ describe("createFetch", () => {
     const engine = makeEngine();
     const handleSpy = vi.spyOn(engine, "handle");
     const networkErr = new TypeError("Failed to fetch");
-    vi.spyOn(global, "fetch").mockRejectedValue(networkErr);
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(networkErr);
 
     const fetcher = createFetch(engine, { mode: "throw" });
     await expect(fetcher("http://test")).rejects.toThrow("Failed to fetch");
@@ -558,7 +566,7 @@ describe("createFetch", () => {
 
   it("network error (handle mode) → engine.handle() called + resolves undefined", async () => {
     const engine = makeEngine();
-    vi.spyOn(global, "fetch").mockRejectedValue(
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
       new TypeError("Failed to fetch"),
     );
 
@@ -570,7 +578,7 @@ describe("createFetch", () => {
   it("network error (silent mode) → engine.handle() NOT called + rethrows", async () => {
     const engine = makeEngine();
     const handleSpy = vi.spyOn(engine, "handle");
-    vi.spyOn(global, "fetch").mockRejectedValue(
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
       new TypeError("Failed to fetch"),
     );
 
@@ -582,7 +590,7 @@ describe("createFetch", () => {
   it("default mode is throw", async () => {
     const engine = makeEngine();
     const handleSpy = vi.spyOn(engine, "handle");
-    vi.spyOn(global, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 422 }),
     );
 
@@ -751,11 +759,12 @@ describe("HandleResult contract", () => {
 // ---------------------------------------------------------------------------
 
 describe("Config validation", () => {
-  let warnSpy: ReturnType<typeof vi.spyOn>;
+  let warnSpy: MockInstance;
   const originalEnv = process.env["NODE_ENV"];
 
   beforeEach(() => {
-    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, "warn");
+    warnSpy.mockImplementation(() => {});
     process.env["NODE_ENV"] = "development";
   });
 

@@ -13,6 +13,12 @@ import type { ErrorEngine, AppError, StateListener } from "./types";
 
 export const ErrorEngineKey: InjectionKey<ErrorEngine> = Symbol("ErrorEngine");
 
+function resolveErrorEngine<
+  TCode extends string = string,
+>(): ErrorEngine<TCode> | null {
+  return inject(ErrorEngineKey, null) as ErrorEngine<TCode> | null;
+}
+
 export function createErrorEnginePlugin<TCode extends string = string>(
   engine: ErrorEngine<TCode>,
 ): Plugin {
@@ -32,13 +38,13 @@ export function provideErrorEngine<TCode extends string = string>(
 export function useErrorEngine<
   TCode extends string = string,
 >(): ErrorEngine<TCode> | null {
-  const engine = inject(ErrorEngineKey, null);
+  const engine = resolveErrorEngine<TCode>();
   if (!engine && process.env["NODE_ENV"] === "development") {
     console.error(
       "[gracefulerrors] useErrorEngine called outside of a provider (ErrorEngineKey not found).",
     );
   }
-  return engine as ErrorEngine<TCode> | null;
+  return engine;
 }
 
 export function useFieldError<TField extends string = string>(
@@ -87,7 +93,7 @@ export const ErrorBoundaryWithEngine = defineComponent({
     },
   },
   setup(props, { slots }) {
-    const engine = useErrorEngine();
+    const engine = resolveErrorEngine();
     const hasError = ref(false);
 
     onErrorCaptured((err: unknown) => {

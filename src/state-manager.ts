@@ -146,7 +146,7 @@ export function createStateManager<TCode extends string = string>(
     // Check queue — spec: QUEUED | clear() → EXPIRED | remove from queue
     const queueIdx = queue.findIndex((slot) => slot.error.code === code);
     if (queueIdx !== -1) {
-      const slot = queue[queueIdx]!;
+      const slot = queue[queueIdx];
       slot.state = "EXPIRED";
       queue.splice(queueIdx, 1);
       notify({ type: "ERROR_CLEARED", code });
@@ -195,4 +195,4 @@ export function createStateManager<TCode extends string = string>(
   };
 }
 
-export type { ErrorStateManager, StateListener };
+export type { ErrorStateManager, StateListener } from "./types";
