@@ -6,7 +6,7 @@ import type { ErrorEngine } from "../types";
 declare type MyCode = "AUTH_ERROR" | "NOT_FOUND";
 declare type MyField = "email" | "password";
 
-function useTypeAssertions() {
+function runTypeAssertions() {
   const engine = useErrorEngine<MyCode>();
   expectType<ErrorEngine<MyCode> | null>(engine);
 
@@ -19,4 +19,4 @@ function useTypeAssertions() {
   useFieldError<MyField>("username");
 }
 
-useTypeAssertions();
+runTypeAssertions();

@@ -1,6 +1,5 @@
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { RendererAdapter, RenderIntent } from "../types";
 import { resolveMessage } from "../registry";
 
@@ -24,13 +23,6 @@ export function ModalDialog({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onDismiss]);
-
-  const handleDialogKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  };
 
   return (
     <div
@@ -66,11 +58,11 @@ export function ModalDialog({
           maxWidth: 500,
           position: "relative",
         }}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={handleDialogKeyDown}
       >
         <p style={{ margin: "0 0 16px" }}>{message}</p>
-        <button onClick={onDismiss}>Dismiss</button>
+        <button type="button" onClick={onDismiss}>
+          Dismiss
+        </button>
       </div>
     </div>
   );
