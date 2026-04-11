@@ -20,7 +20,7 @@ function runComposableTypeAssertions() {
   useFieldError<MyField>("username");
 }
 
-void runComposableTypeAssertions;
+runComposableTypeAssertions();
 
 // createErrorEnginePlugin returns Plugin
 declare const typedEngine: ErrorEngine<MyCode>;

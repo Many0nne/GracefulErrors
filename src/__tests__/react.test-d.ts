@@ -19,4 +19,4 @@ function useTypeAssertions() {
   useFieldError<MyField>("username");
 }
 
-void useTypeAssertions;
+useTypeAssertions();

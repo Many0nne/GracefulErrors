@@ -44,7 +44,7 @@ export function useErrorEngine<
       "[gracefulerrors] useErrorEngine called outside of a provider (ErrorEngineKey not found).",
     );
   }
-  return engine as ErrorEngine<TCode> | null;
+  return engine;
 }
 
 export function useFieldError<TField extends string = string>(
