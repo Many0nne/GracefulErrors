@@ -102,6 +102,29 @@ export interface RendererAdapter {
   clearAll(): void;
 }
 
+// History types
+export interface HistoryConfig {
+  /** Maximum number of entries to keep. Default: 20 in dev, 0 (disabled) in production. */
+  maxEntries?: number;
+  /** Explicit enable/disable override. When false, always disabled. When true, overrides production default. */
+  enabled?: boolean;
+}
+
+export type HistoryEntry<TCode extends string = string> =
+  | {
+      error: AppError<TCode>;
+      handled: true;
+      uiAction: UIAction;
+      handledAt: number;
+    }
+  | {
+      error: AppError<TCode>;
+      handled: false;
+      uiAction: null;
+      reason: "suppressed" | "deduped" | "dropped";
+      handledAt: number;
+    };
+
 // Engine public interface types
 export interface ErrorEngine<TCode extends string = string> {
   handle(raw: unknown): HandleResult<TCode>;
@@ -109,6 +132,8 @@ export interface ErrorEngine<TCode extends string = string> {
   clearAll(): void;
   subscribe(listener: StateListener<TCode>): () => void;
   destroy(): void;
+  getHistory(): HistoryEntry<TCode>[];
+  clearHistory(): void;
 }
 
 export type HandleResult<TCode extends string = string> =
@@ -188,7 +213,7 @@ export type Normalizer<
   current: AppError<TCode, TField> | null,
 ) => AppError<TCode, TField> | null;
 
-// Engine config type
+// Engine config type — history is optional; see HistoryConfig for defaults
 export interface ErrorEngineConfig<
   TCode extends string = string,
   TField extends string = string,
@@ -249,4 +274,5 @@ export interface ErrorEngineConfig<
    */
   modalDismissTimeoutMs?: number;
   renderer?: RendererAdapter;
+  history?: HistoryConfig;
 }

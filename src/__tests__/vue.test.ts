@@ -21,6 +21,8 @@ function makeEngine(overrides?: Partial<ErrorEngine>): ErrorEngine {
     clearAll: vi.fn(),
     subscribe: vi.fn().mockReturnValue(() => {}),
     destroy: vi.fn(),
+    getHistory: vi.fn().mockReturnValue([]),
+    clearHistory: vi.fn(),
     ...overrides,
   };
 }

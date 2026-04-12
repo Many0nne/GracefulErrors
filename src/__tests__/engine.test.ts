@@ -1022,3 +1022,186 @@ describe("destroy()", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// getHistory() / clearHistory()
+// ---------------------------------------------------------------------------
+
+describe("getHistory()", () => {
+  const originalEnv = process.env["NODE_ENV"];
+
+  beforeEach(() => {
+    process.env["NODE_ENV"] = "development";
+  });
+
+  afterEach(() => {
+    process.env["NODE_ENV"] = originalEnv;
+  });
+
+  it("returns empty array before any handle() calls", () => {
+    const engine = makeEngine();
+    expect(engine.getHistory()).toEqual([]);
+  });
+
+  it("records a handled entry with uiAction and handledAt", () => {
+    const before = Date.now();
+    const engine = makeEngine();
+    engine.handle(structuredNotFound);
+    const after = Date.now();
+
+    const history = engine.getHistory();
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({
+      handled: true,
+      uiAction: "toast",
+      error: { code: "NOT_FOUND" },
+    });
+    expect(history[0].handledAt).toBeGreaterThanOrEqual(before);
+    expect(history[0].handledAt).toBeLessThanOrEqual(after);
+  });
+
+  it("records an unhandled (suppressed) entry with uiAction: null", () => {
+    const engine = makeEngine({
+      transform: () => ({ suppress: true, reason: "test" }),
+    });
+    engine.handle(structuredNotFound);
+
+    const history = engine.getHistory();
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({
+      handled: false,
+      uiAction: null,
+      reason: "suppressed",
+      error: { code: "NOT_FOUND" },
+    });
+  });
+
+  it("records an unhandled (deduped) entry", () => {
+    const engine = makeEngine({ dedupeWindow: 5000 });
+    engine.handle(structuredNotFound); // first → handled
+    engine.handle(structuredNotFound); // second → deduped
+
+    const history = engine.getHistory();
+    expect(history).toHaveLength(2);
+    expect(history[1]).toMatchObject({ handled: false, reason: "deduped" });
+  });
+
+  it("records multiple entries in order", () => {
+    const engine = makeEngine({ dedupeWindow: 0 });
+    engine.handle(structuredNotFound);
+    engine.handle(structuredUnauthorized);
+
+    const history = engine.getHistory();
+    expect(history).toHaveLength(2);
+    expect(history[0].error.code).toBe("NOT_FOUND");
+    expect(history[1].error.code).toBe("UNAUTHORIZED");
+  });
+
+  it("respects maxEntries: drops oldest entry when full", () => {
+    const engine = makeEngine({ history: { maxEntries: 2 }, dedupeWindow: 0 });
+    engine.handle({ code: "NOT_FOUND" });
+    engine.handle({ code: "UNAUTHORIZED" });
+    engine.handle({ code: "SERVER_ERROR" }); // should evict NOT_FOUND
+
+    const history = engine.getHistory();
+    expect(history).toHaveLength(2);
+    expect(history[0].error.code).toBe("UNAUTHORIZED");
+    expect(history[1].error.code).toBe("SERVER_ERROR");
+  });
+
+  it("returns a copy — mutations do not affect internal state", () => {
+    const engine = makeEngine();
+    engine.handle(structuredNotFound);
+
+    const h1 = engine.getHistory();
+    h1.push({
+      error: { code: "UNAUTHORIZED" },
+      handled: true,
+      uiAction: "modal",
+      handledAt: 0,
+    });
+
+    expect(engine.getHistory()).toHaveLength(1);
+  });
+
+  it("is disabled by default in production (maxEntries: 0)", () => {
+    process.env["NODE_ENV"] = "production";
+    const engine = makeEngine();
+    engine.handle(structuredNotFound);
+    expect(engine.getHistory()).toEqual([]);
+  });
+
+  it("can be explicitly enabled in production with enabled: true", () => {
+    process.env["NODE_ENV"] = "production";
+    const engine = makeEngine({ history: { enabled: true } });
+    engine.handle(structuredNotFound);
+    expect(engine.getHistory()).toHaveLength(1);
+  });
+
+  it("can be explicitly disabled in dev with enabled: false", () => {
+    const engine = makeEngine({ history: { enabled: false } });
+    engine.handle(structuredNotFound);
+    expect(engine.getHistory()).toEqual([]);
+  });
+
+  it("history.maxEntries: NaN → warns and uses fallback", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const engine = makeEngine({ history: { maxEntries: Number.NaN } });
+    engine.handle(structuredNotFound);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("history.maxEntries"),
+    );
+    warnSpy.mockRestore();
+    // fallback in dev is 20, so entry is recorded
+    expect(engine.getHistory()).toHaveLength(1);
+  });
+
+  it("history.maxEntries: -1 → warns and uses fallback", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const engine = makeEngine({ history: { maxEntries: -1 } });
+    engine.handle(structuredNotFound);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("history.maxEntries"),
+    );
+    warnSpy.mockRestore();
+  });
+});
+
+describe("clearHistory()", () => {
+  const originalEnv = process.env["NODE_ENV"];
+
+  beforeEach(() => {
+    process.env["NODE_ENV"] = "development";
+  });
+
+  afterEach(() => {
+    process.env["NODE_ENV"] = originalEnv;
+  });
+
+  it("wipes all entries", () => {
+    const engine = makeEngine({ dedupeWindow: 0 });
+    engine.handle(structuredNotFound);
+    engine.handle(structuredUnauthorized);
+    expect(engine.getHistory()).toHaveLength(2);
+
+    engine.clearHistory();
+    expect(engine.getHistory()).toEqual([]);
+  });
+
+  it("is safe to call on an empty history", () => {
+    const engine = makeEngine();
+    expect(() => engine.clearHistory()).not.toThrow();
+    expect(engine.getHistory()).toEqual([]);
+  });
+
+  it("new entries can be recorded after clearHistory()", () => {
+    const engine = makeEngine({ dedupeWindow: 0 });
+    engine.handle(structuredNotFound);
+    engine.clearHistory();
+    engine.handle(structuredUnauthorized);
+
+    const history = engine.getHistory();
+    expect(history).toHaveLength(1);
+    expect(history[0].error.code).toBe("UNAUTHORIZED");
+  });
+});
