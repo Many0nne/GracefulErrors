@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { RendererAdapter, RenderIntent } from "../types";
 import { resolveMessage } from "../registry";
 
@@ -16,6 +16,19 @@ export function ModalDialog({
   readonly dismissible: boolean;
   readonly onDismiss: () => void;
 }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const messageId = useId();
+
+  // Save previously focused element on mount; restore it when dialog unmounts.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => {
+      previouslyFocused?.focus();
+    };
+  }, []);
+
+  // Escape key closes the dialog.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onDismiss();
@@ -36,7 +49,12 @@ export function ModalDialog({
         zIndex: 9999,
       }}
     >
-      <div
+      <dialog
+        ref={dialogRef}
+        aria-modal="true"
+        aria-labelledby={messageId}
+        tabIndex={-1}
+        open
         style={{
           background: "white",
           borderRadius: 8,
@@ -45,17 +63,22 @@ export function ModalDialog({
           maxWidth: 500,
           position: "relative",
           zIndex: 1,
+          border: "none",
+          margin: 0,
         }}
       >
-        <p style={{ margin: "0 0 16px" }}>{message}</p>
-        <button type="button" onClick={onDismiss}>
+        <p id={messageId} style={{ margin: "0 0 16px" }}>
+          {message}
+        </p>
+        <button type="button" aria-label="Close error" onClick={onDismiss}>
           Dismiss
         </button>
-      </div>
+      </dialog>
       {dismissible && (
         <button
           type="button"
-          tabIndex={0}
+          tabIndex={-1}
+          aria-hidden="true"
           style={{
             position: "absolute",
             inset: 0,
@@ -64,11 +87,7 @@ export function ModalDialog({
             cursor: "pointer",
             zIndex: 0,
           }}
-          aria-label="Dismiss modal overlay"
           onClick={onDismiss}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onDismiss();
-          }}
         />
       )}
     </div>

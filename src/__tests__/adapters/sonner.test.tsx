@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createSonnerAdapter } from "../../adapters/sonner";
 import type { RenderIntent } from "../../types";
 
@@ -207,5 +208,114 @@ describe("createSonnerAdapter — clear / clearAll", () => {
     const adapter = createSonnerAdapter();
     adapter.clearAll();
     expect(mockToastDismiss).toHaveBeenCalledWith();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ModalDialog — accessibility (ARIA attributes + keyboard interaction)
+// ---------------------------------------------------------------------------
+
+function renderModalTree(onDismiss = vi.fn()) {
+  const adapter = createSonnerAdapter();
+  adapter.render(makeIntent({ ui: "modal", entry: { ui: "modal" } }), {
+    onDismiss,
+  });
+  const renderedTree = mockRender.mock.calls[0]?.[0];
+  return { renderedTree, onDismiss };
+}
+
+describe("ModalDialog — accessibility", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    document.body.innerHTML = "";
+  });
+
+  it("dialog element is present and has aria-modal='true'", () => {
+    const { renderedTree } = renderModalTree();
+    const { container } = render(renderedTree);
+
+    // <dialog> carries role="dialog" implicitly — query by element tag.
+    const dialog = container.querySelector("dialog");
+    expect(dialog).not.toBeNull();
+    expect(dialog?.getAttribute("aria-modal")).toBe("true");
+  });
+
+  it("dialog has aria-labelledby pointing to the message element", () => {
+    const { renderedTree } = renderModalTree();
+    const { container } = render(renderedTree);
+
+    const dialog = container.querySelector("dialog");
+    const labelledBy = dialog?.getAttribute("aria-labelledby");
+    expect(labelledBy).toBeTruthy();
+
+    // useId generates IDs like ":r0:" — use attribute selector to avoid CSS
+    // pseudo-class conflicts in querySelector.
+    const labelEl = container.querySelector(`[id="${labelledBy}"]`);
+    expect(labelEl).not.toBeNull();
+    expect(labelEl?.textContent).toContain("Something went wrong");
+  });
+
+  it("dismiss button has aria-label='Close error'", () => {
+    const { renderedTree } = renderModalTree();
+    render(renderedTree);
+
+    const closeBtn = screen.getByRole("button", { name: "Close error" });
+    expect(closeBtn).toBeTruthy();
+  });
+
+  it("Escape key triggers onDismiss", () => {
+    const onDismiss = vi.fn();
+    const { renderedTree } = renderModalTree(onDismiss);
+    render(renderedTree);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("Tab from the last focusable element wraps focus back to the first", () => {
+    const { renderedTree } = renderModalTree();
+    const { container } = render(renderedTree);
+
+    const dialog = container.querySelector("dialog") as HTMLElement;
+    const closeBtn = screen.getByRole("button", { name: "Close error" });
+
+    // Only one focusable element: first === last.
+    closeBtn.focus();
+    expect(document.activeElement).toBe(closeBtn);
+
+    fireEvent.keyDown(dialog, { key: "Tab" });
+    // focus stays on the single focusable element
+    expect(document.activeElement).toBe(closeBtn);
+  });
+
+  it("Shift+Tab from the first focusable element wraps focus to the last", () => {
+    const { renderedTree } = renderModalTree();
+    const { container } = render(renderedTree);
+
+    const dialog = container.querySelector("dialog") as HTMLElement;
+    const closeBtn = screen.getByRole("button", { name: "Close error" });
+
+    closeBtn.focus();
+    expect(document.activeElement).toBe(closeBtn);
+
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(closeBtn);
+  });
+
+  it("focus is restored to the previously focused element on dismiss", () => {
+    const previousButton = document.createElement("button");
+    document.body.appendChild(previousButton);
+    previousButton.focus();
+    expect(document.activeElement).toBe(previousButton);
+
+    const { renderedTree } = renderModalTree();
+    const { unmount } = render(renderedTree);
+
+    act(() => {
+      unmount();
+    });
+
+    expect(document.activeElement).toBe(previousButton);
+    previousButton.remove();
   });
 });
