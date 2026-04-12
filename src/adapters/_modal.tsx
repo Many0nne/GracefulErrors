@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { RendererAdapter, RenderIntent } from "../types";
 import { resolveMessage } from "../registry";
 
@@ -16,6 +16,19 @@ export function ModalDialog({
   readonly dismissible: boolean;
   readonly onDismiss: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const messageId = useId();
+
+  // Save previously focused element on mount; restore it when dialog unmounts.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => {
+      previouslyFocused?.focus();
+    };
+  }, []);
+
+  // Escape key closes the dialog.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onDismiss();
@@ -23,6 +36,37 @@ export function ModalDialog({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onDismiss]);
+
+  // Focus trap: keep Tab / Shift+Tab cycling within the dialog.
+  const handleDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab") return;
+
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const focusableSelectors =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusableElements = Array.from(
+      dialog.querySelectorAll<HTMLElement>(focusableSelectors),
+    );
+
+    if (focusableElements.length === 0) return;
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (e.shiftKey) {
+      if (document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+      }
+    } else {
+      if (document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    }
+  };
 
   return (
     <div
@@ -37,6 +81,12 @@ export function ModalDialog({
       }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={messageId}
+        tabIndex={-1}
+        onKeyDown={handleDialogKeyDown}
         style={{
           background: "white",
           borderRadius: 8,
@@ -47,15 +97,18 @@ export function ModalDialog({
           zIndex: 1,
         }}
       >
-        <p style={{ margin: "0 0 16px" }}>{message}</p>
-        <button type="button" onClick={onDismiss}>
+        <p id={messageId} style={{ margin: "0 0 16px" }}>
+          {message}
+        </p>
+        <button type="button" aria-label="Close error" onClick={onDismiss}>
           Dismiss
         </button>
       </div>
       {dismissible && (
         <button
           type="button"
-          tabIndex={0}
+          tabIndex={-1}
+          aria-hidden="true"
           style={{
             position: "absolute",
             inset: 0,
@@ -64,11 +117,7 @@ export function ModalDialog({
             cursor: "pointer",
             zIndex: 0,
           }}
-          aria-label="Dismiss modal overlay"
           onClick={onDismiss}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onDismiss();
-          }}
         />
       )}
     </div>

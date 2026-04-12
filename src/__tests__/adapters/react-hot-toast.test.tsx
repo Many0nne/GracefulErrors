@@ -198,7 +198,7 @@ describe("createHotToastAdapter — modal", () => {
     expect(mockRender).toHaveBeenCalled();
   });
 
-  it("dismissible modal backdrop is keyboard-focusable and Enter dismisses", () => {
+  it("dismissible modal backdrop click dismisses without keyboard focus", () => {
     const adapter = createHotToastAdapter();
     const onDismiss = vi.fn();
 
@@ -208,14 +208,14 @@ describe("createHotToastAdapter — modal", () => {
 
     const renderedTree = mockRender.mock.calls[0]?.[0];
     expect(renderedTree).toBeTruthy();
-    render(renderedTree);
+    const { container } = render(renderedTree);
 
-    const backdrop = screen.getByRole("button", {
-      name: "Dismiss modal overlay",
-    });
-    expect(backdrop.getAttribute("tabindex")).toBe("0");
+    // backdrop is aria-hidden and not in the tab order (focus is trapped in dialog)
+    const backdrop = container.querySelector('button[aria-hidden="true"]');
+    expect(backdrop).not.toBeNull();
+    expect(backdrop?.getAttribute("tabindex")).toBe("-1");
 
-    fireEvent.keyDown(backdrop, { key: "Enter" });
+    fireEvent.click(backdrop!);
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
