@@ -9,6 +9,8 @@ export type {
   AppError,
   ErrorEngine,
   ErrorEngineConfig,
+  ServerErrorEngine,
+  ServerErrorEngineConfig,
   ErrorReporter,
   HandleResult,
   HistoryEntry,
