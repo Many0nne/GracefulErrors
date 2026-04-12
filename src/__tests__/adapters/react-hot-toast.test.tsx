@@ -215,7 +215,8 @@ describe("createHotToastAdapter — modal", () => {
     expect(backdrop).not.toBeNull();
     expect(backdrop?.getAttribute("tabindex")).toBe("-1");
 
-    fireEvent.click(backdrop!);
+    if (backdrop === null) throw new Error("backdrop not found");
+    fireEvent.click(backdrop);
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 

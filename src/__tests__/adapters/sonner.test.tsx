@@ -215,26 +215,27 @@ describe("createSonnerAdapter — clear / clearAll", () => {
 // ModalDialog — accessibility (ARIA attributes + keyboard interaction)
 // ---------------------------------------------------------------------------
 
+function renderModalTree(onDismiss = vi.fn()) {
+  const adapter = createSonnerAdapter();
+  adapter.render(makeIntent({ ui: "modal", entry: { ui: "modal" } }), {
+    onDismiss,
+  });
+  const renderedTree = mockRender.mock.calls[0]?.[0];
+  return { renderedTree, onDismiss };
+}
+
 describe("ModalDialog — accessibility", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     document.body.innerHTML = "";
   });
 
-  function renderModalTree(onDismiss = vi.fn()) {
-    const adapter = createSonnerAdapter();
-    adapter.render(makeIntent({ ui: "modal", entry: { ui: "modal" } }), {
-      onDismiss,
-    });
-    const renderedTree = mockRender.mock.calls[0]?.[0];
-    return { renderedTree, onDismiss };
-  }
-
-  it("dialog has role='dialog' and aria-modal='true'", () => {
+  it("dialog element is present and has aria-modal='true'", () => {
     const { renderedTree } = renderModalTree();
     const { container } = render(renderedTree);
 
-    const dialog = container.querySelector('[role="dialog"]');
+    // <dialog> carries role="dialog" implicitly — query by element tag.
+    const dialog = container.querySelector("dialog");
     expect(dialog).not.toBeNull();
     expect(dialog?.getAttribute("aria-modal")).toBe("true");
   });
@@ -243,7 +244,7 @@ describe("ModalDialog — accessibility", () => {
     const { renderedTree } = renderModalTree();
     const { container } = render(renderedTree);
 
-    const dialog = container.querySelector('[role="dialog"]');
+    const dialog = container.querySelector("dialog");
     const labelledBy = dialog?.getAttribute("aria-labelledby");
     expect(labelledBy).toBeTruthy();
 
@@ -275,7 +276,7 @@ describe("ModalDialog — accessibility", () => {
     const { renderedTree } = renderModalTree();
     const { container } = render(renderedTree);
 
-    const dialog = container.querySelector('[role="dialog"]') as HTMLElement;
+    const dialog = container.querySelector("dialog") as HTMLElement;
     const closeBtn = screen.getByRole("button", { name: "Close error" });
 
     // Only one focusable element: first === last.
@@ -291,7 +292,7 @@ describe("ModalDialog — accessibility", () => {
     const { renderedTree } = renderModalTree();
     const { container } = render(renderedTree);
 
-    const dialog = container.querySelector('[role="dialog"]') as HTMLElement;
+    const dialog = container.querySelector("dialog") as HTMLElement;
     const closeBtn = screen.getByRole("button", { name: "Close error" });
 
     closeBtn.focus();
@@ -315,6 +316,6 @@ describe("ModalDialog — accessibility", () => {
     });
 
     expect(document.activeElement).toBe(previousButton);
-    document.body.removeChild(previousButton);
+    previousButton.remove();
   });
 });

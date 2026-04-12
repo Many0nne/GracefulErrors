@@ -16,7 +16,7 @@ export function ModalDialog({
   readonly dismissible: boolean;
   readonly onDismiss: () => void;
 }) {
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const messageId = useId();
 
   // Save previously focused element on mount; restore it when dialog unmounts.
@@ -60,11 +60,9 @@ export function ModalDialog({
         e.preventDefault();
         lastElement.focus();
       }
-    } else {
-      if (document.activeElement === lastElement) {
-        e.preventDefault();
-        firstElement.focus();
-      }
+    } else if (document.activeElement === lastElement) {
+      e.preventDefault();
+      firstElement.focus();
     }
   };
 
@@ -80,13 +78,13 @@ export function ModalDialog({
         zIndex: 9999,
       }}
     >
-      <div
+      <dialog
         ref={dialogRef}
-        role="dialog"
         aria-modal="true"
         aria-labelledby={messageId}
         tabIndex={-1}
         onKeyDown={handleDialogKeyDown}
+        open
         style={{
           background: "white",
           borderRadius: 8,
@@ -95,6 +93,8 @@ export function ModalDialog({
           maxWidth: 500,
           position: "relative",
           zIndex: 1,
+          border: "none",
+          margin: 0,
         }}
       >
         <p id={messageId} style={{ margin: "0 0 16px" }}>
@@ -103,7 +103,7 @@ export function ModalDialog({
         <button type="button" aria-label="Close error" onClick={onDismiss}>
           Dismiss
         </button>
-      </div>
+      </dialog>
       {dismissible && (
         <button
           type="button"
