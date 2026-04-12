@@ -29,12 +29,12 @@ describe("createMockEngine", () => {
     expect(engine.calls[0].uiAction).toBe("modal");
   });
 
-  it("returns null uiAction for silent routing", () => {
+  it("returns 'silent' uiAction for silent routing", () => {
     const engine = createMockEngine<Code>({ registry });
 
     engine.handle({ code: "SERVER_ERROR" });
 
-    expect(engine.calls[0].uiAction).toBeNull();
+    expect(engine.calls[0].uiAction).toBe("silent");
   });
 
   it("defaults to toast when no registry entry matches", () => {
@@ -70,9 +70,11 @@ describe("createMockEngine", () => {
 
     const result = engine.handle({ code: "AUTH_FAILED" });
 
-    expect(result.handled).toBe(true);
-    expect(result.error.code).toBe("AUTH_FAILED");
-    expect(result.uiAction).toBe("toast");
+    expect(result).toMatchObject({
+      handled: true,
+      error: expect.objectContaining({ code: "AUTH_FAILED" }),
+      uiAction: "toast",
+    });
   });
 
   it("uses fallback config when no registry entry matches", () => {

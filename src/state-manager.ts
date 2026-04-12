@@ -88,11 +88,13 @@ export function createStateManager<TCode extends string = string>(
     return !isDuplicate(fingerprint, Date.now());
   }
 
-  function enqueue(slot: InternalSlot): "active" | "queued" | "rejected" {
+  function enqueue(
+    slot: InternalSlot,
+  ): "active" | "queued" | "deduped" | "dropped" {
     const now = Date.now();
     if (isDuplicate(slot.fingerprint, now)) {
       onDropped?.(slot.error, "dedupe");
-      return "rejected";
+      return "deduped";
     }
 
     dedupeMap.set(slot.fingerprint, now);
@@ -113,7 +115,7 @@ export function createStateManager<TCode extends string = string>(
 
     if (maxQueue !== undefined && queue.length >= maxQueue) {
       onDropped?.(slot.error, "queue_overflow");
-      return "rejected";
+      return "dropped";
     }
 
     slot.state = "QUEUED";

@@ -12,7 +12,7 @@ import type {
 
 export interface MockEngineCall<TCode extends string = string> {
   error: AppError<TCode>;
-  uiAction: UIAction | null;
+  uiAction: UIAction;
 }
 
 export interface MockEngine<TCode extends string = string> {
@@ -60,10 +60,10 @@ export function createMockEngine<
     const result: HandleResult<TCode> = {
       handled: true,
       error: normalized,
-      uiAction: uiAction === "silent" ? null : uiAction,
+      uiAction,
     };
 
-    calls.push({ error: normalized, uiAction: result.uiAction });
+    calls.push({ error: normalized, uiAction });
 
     return result;
   }

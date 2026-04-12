@@ -23,14 +23,14 @@ describe("Deduplication", () => {
     vi.useRealTimers();
   });
 
-  it("same fingerprint within dedupeWindow → second call returns rejected + onDropped(dedupe)", () => {
+  it("same fingerprint within dedupeWindow → second call returns deduped + onDropped(dedupe)", () => {
     const onDropped = vi.fn();
     const sm = createStateManager({ dedupeWindow: 300, onDropped });
 
     sm.enqueue(makeSlot("FOO"));
     const result = sm.enqueue(makeSlot("FOO"));
 
-    expect(result).toBe("rejected");
+    expect(result).toBe("deduped");
     expect(onDropped).toHaveBeenCalledWith({ code: "FOO" }, "dedupe");
   });
 
@@ -61,7 +61,7 @@ describe("Capacity", () => {
     expect(sm.enqueue(makeSlot("C", "fp-c"))).toBe("queued");
   });
 
-  it("maxQueue exceeded → rejected + onDropped(queue_overflow)", () => {
+  it("maxQueue exceeded → dropped + onDropped(queue_overflow)", () => {
     const onDropped = vi.fn();
     const sm = createStateManager({ maxConcurrent: 1, maxQueue: 1, onDropped });
 
@@ -69,7 +69,7 @@ describe("Capacity", () => {
     sm.enqueue(makeSlot("B", "fp-b")); // queued
     const result = sm.enqueue(makeSlot("C", "fp-c"));
 
-    expect(result).toBe("rejected");
+    expect(result).toBe("dropped");
     expect(onDropped).toHaveBeenCalledWith({ code: "C" }, "queue_overflow");
   });
 
@@ -81,8 +81,8 @@ describe("Capacity", () => {
     for (let i = 0; i < 25; i++) {
       sm.enqueue(makeSlot(`E${i}`, `fp-${i}`)); // fills queue to default limit
     }
-    const result = sm.enqueue(makeSlot("OVERFLOW", "fp-overflow")); // 26th → rejected
-    expect(result).toBe("rejected");
+    const result = sm.enqueue(makeSlot("OVERFLOW", "fp-overflow")); // 26th → dropped
+    expect(result).toBe("dropped");
     expect(onDropped).toHaveBeenCalledWith(
       expect.objectContaining({ code: "OVERFLOW" }),
       "queue_overflow",
