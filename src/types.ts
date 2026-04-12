@@ -108,6 +108,7 @@ export interface ErrorEngine<TCode extends string = string> {
   clear(code: TCode): void;
   clearAll(): void;
   subscribe(listener: StateListener<TCode>): () => void;
+  destroy(): void;
 }
 
 export type HandleResult<TCode extends string = string> =
@@ -157,6 +158,7 @@ export interface ErrorStateManager<TCode extends string = string> {
   getQueueLength(): number;
   clearAll(): void;
   subscribe(listener: StateListener<TCode>): () => void;
+  destroy(): void;
 }
 
 // @internal

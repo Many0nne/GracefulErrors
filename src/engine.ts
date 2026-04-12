@@ -525,7 +525,14 @@ export function createErrorEngine<
     return stateManager.subscribe(listener);
   }
 
-  return { handle, clear, clearAll, subscribe };
+  function destroy(): void {
+    for (const timer of aggregationTimers.values()) clearTimeout(timer);
+    aggregationTimers.clear();
+    aggregationMap.clear();
+    stateManager.destroy();
+  }
+
+  return { handle, clear, clearAll, subscribe, destroy };
 }
 
 // ---------------------------------------------------------------------------

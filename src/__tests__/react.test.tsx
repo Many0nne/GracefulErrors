@@ -19,6 +19,7 @@ function makeEngine(overrides?: Partial<ErrorEngine>): ErrorEngine {
     clear: vi.fn(),
     clearAll: vi.fn(),
     subscribe: vi.fn().mockReturnValue(() => {}),
+    destroy: vi.fn(),
     ...overrides,
   };
 }
@@ -289,5 +290,43 @@ describe("ErrorBoundaryWithEngine", () => {
       </ErrorBoundaryWithEngine>,
     );
     expect(screen.getByText("fallback")).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ErrorEngineProvider — destroy() on unmount
+// ---------------------------------------------------------------------------
+
+describe("ErrorEngineProvider destroy() on unmount", () => {
+  it("calls engine.destroy() when provider unmounts", () => {
+    const engine = makeEngine({ destroy: vi.fn() });
+    const { unmount } = render(
+      <ErrorEngineProvider engine={engine}>
+        <div />
+      </ErrorEngineProvider>,
+    );
+
+    unmount();
+
+    expect(engine.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls engine.destroy() again when engine prop changes", () => {
+    const engine1 = makeEngine({ destroy: vi.fn() });
+    const engine2 = makeEngine({ destroy: vi.fn() });
+
+    const { rerender } = render(
+      <ErrorEngineProvider engine={engine1}>
+        <div />
+      </ErrorEngineProvider>,
+    );
+
+    rerender(
+      <ErrorEngineProvider engine={engine2}>
+        <div />
+      </ErrorEngineProvider>,
+    );
+
+    expect(engine1.destroy).toHaveBeenCalledTimes(1);
   });
 });
