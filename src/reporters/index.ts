@@ -23,32 +23,40 @@ export type ReporterFilterOptions<TCode extends string = string> = {
   filter?: (error: AppError<TCode>, context: ReporterContext<TCode>) => boolean;
 };
 
+function isOutOfActionScope<TCode extends string>(
+  context: ReporterContext<TCode>,
+  opts: ReporterFilterOptions<TCode>,
+): boolean {
+  if (!opts.actions) return false;
+  const action: UIAction | null = context.result.handled
+    ? context.result.uiAction
+    : null;
+  return !action || !opts.actions.includes(action);
+}
+
+function isOutOfStatusRange<TCode extends string>(
+  error: AppError<TCode>,
+  opts: ReporterFilterOptions<TCode>,
+): boolean {
+  if (!opts.statusRange) return false;
+  const { min, max } = opts.statusRange;
+  const { status } = error;
+  if (status === undefined) return true;
+  return (
+    (min !== undefined && status < min) || (max !== undefined && status > max)
+  );
+}
+
 function shouldSkip<TCode extends string>(
   error: AppError<TCode>,
   context: ReporterContext<TCode>,
   opts: ReporterFilterOptions<TCode>,
 ): boolean {
-  if (opts.ignore && opts.ignore.includes(error.code as TCode)) return true;
-
+  if (opts.ignore?.includes(error.code as TCode)) return true;
   if (opts.handledOnly && !context.result.handled) return true;
-
-  if (opts.actions) {
-    const action: UIAction | null = context.result.handled
-      ? context.result.uiAction
-      : null;
-    if (!action || !opts.actions.includes(action)) return true;
-  }
-
-  if (opts.statusRange) {
-    const { min, max } = opts.statusRange;
-    const status = error.status;
-    if (status === undefined) return true;
-    if (min !== undefined && status < min) return true;
-    if (max !== undefined && status > max) return true;
-  }
-
+  if (isOutOfActionScope(context, opts)) return true;
+  if (isOutOfStatusRange(error, opts)) return true;
   if (opts.filter && !opts.filter(error, context)) return true;
-
   return false;
 }
 
@@ -96,6 +104,10 @@ export type SentryReporterOptions<TCode extends string = string> =
     ) => Record<string, string | number | boolean | null | undefined>;
   };
 
+function defaultSentryLevel(status: number | undefined): SentryLevel {
+  return (status ?? 500) >= 500 ? "error" : "warning";
+}
+
 export function createSentryReporter<TCode extends string = string>(
   sentry: SentryLike,
   options: SentryReporterOptions<TCode> = {},
@@ -108,9 +120,7 @@ export function createSentryReporter<TCode extends string = string>(
 
     const level: SentryLevel = options.level
       ? options.level(error, context)
-      : (error.status ?? 500) >= 500
-        ? "error"
-        : "warning";
+      : defaultSentryLevel(error.status);
 
     const extraTags = options.tags ? options.tags(error, context) : {};
 
