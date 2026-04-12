@@ -1056,8 +1056,8 @@ describe("getHistory()", () => {
       uiAction: "toast",
       error: { code: "NOT_FOUND" },
     });
-    expect(history[0]!.handledAt).toBeGreaterThanOrEqual(before);
-    expect(history[0]!.handledAt).toBeLessThanOrEqual(after);
+    expect(history[0].handledAt).toBeGreaterThanOrEqual(before);
+    expect(history[0].handledAt).toBeLessThanOrEqual(after);
   });
 
   it("records an unhandled (suppressed) entry with uiAction: null", () => {
@@ -1093,8 +1093,8 @@ describe("getHistory()", () => {
 
     const history = engine.getHistory();
     expect(history).toHaveLength(2);
-    expect(history[0]!.error.code).toBe("NOT_FOUND");
-    expect(history[1]!.error.code).toBe("UNAUTHORIZED");
+    expect(history[0].error.code).toBe("NOT_FOUND");
+    expect(history[1].error.code).toBe("UNAUTHORIZED");
   });
 
   it("respects maxEntries: drops oldest entry when full", () => {
@@ -1105,8 +1105,8 @@ describe("getHistory()", () => {
 
     const history = engine.getHistory();
     expect(history).toHaveLength(2);
-    expect(history[0]!.error.code).toBe("UNAUTHORIZED");
-    expect(history[1]!.error.code).toBe("SERVER_ERROR");
+    expect(history[0].error.code).toBe("UNAUTHORIZED");
+    expect(history[1].error.code).toBe("SERVER_ERROR");
   });
 
   it("returns a copy — mutations do not affect internal state", () => {
@@ -1202,6 +1202,6 @@ describe("clearHistory()", () => {
 
     const history = engine.getHistory();
     expect(history).toHaveLength(1);
-    expect(history[0]!.error.code).toBe("UNAUTHORIZED");
+    expect(history[0].error.code).toBe("UNAUTHORIZED");
   });
 });

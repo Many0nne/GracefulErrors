@@ -244,7 +244,8 @@ function resolveHistoryConfig<TCode extends string, TField extends string>(
   }
 
   // No maxEntries given: explicit enabled:true overrides production default
-  const maxEntries = histConfig?.enabled === true ? 20 : isProd ? 0 : 20;
+  const defaultMaxEntries = isProd ? 0 : 20;
+  const maxEntries = histConfig?.enabled === true ? 20 : defaultMaxEntries;
   return { maxEntries };
 }
 
