@@ -213,6 +213,19 @@ export type Normalizer<
   current: AppError<TCode, TField> | null,
 ) => AppError<TCode, TField> | null;
 
+// Reporter types — typed wrappers that forward handled errors to monitoring services
+export type ReporterContext<TCode extends string = string> = {
+  /** Full handle result including uiAction (when handled) or drop reason. */
+  result: HandleResult<TCode>;
+  /** Fingerprint computed for this error — use as a grouping key in monitoring services. */
+  fingerprint: string;
+};
+
+export type ErrorReporter<TCode extends string = string> = (
+  error: AppError<TCode>,
+  context: ReporterContext<TCode>,
+) => Promise<void> | void;
+
 // Engine config type — history is optional; see HistoryConfig for defaults
 export interface ErrorEngineConfig<
   TCode extends string = string,
@@ -275,4 +288,11 @@ export interface ErrorEngineConfig<
   modalDismissTimeoutMs?: number;
   renderer?: RendererAdapter;
   history?: HistoryConfig;
+  /**
+   * Reporters forward handled errors to monitoring services (Sentry, Datadog, webhooks).
+   * All reporters run concurrently after each handle() call.
+   * Use `createSentryReporter`, `createDatadogReporter`, or `createWebhookReporter`
+   * from `gracefulerrors/reporters`.
+   */
+  reporters?: ErrorReporter<TCode>[];
 }
