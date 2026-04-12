@@ -42,6 +42,8 @@ function createMockEngine(): ErrorEngine & { calls: unknown[] } {
     clearAll: vi.fn(),
     subscribe: vi.fn(() => () => {}),
     destroy: vi.fn(),
+    getHistory: vi.fn(() => []),
+    clearHistory: vi.fn(),
   };
 }
 

@@ -10,6 +10,8 @@ export type {
   ErrorEngine,
   ErrorEngineConfig,
   HandleResult,
+  HistoryEntry,
+  HistoryConfig,
   ErrorRegistry,
   ErrorRegistryEntry,
   ErrorRegistryEntryFull,

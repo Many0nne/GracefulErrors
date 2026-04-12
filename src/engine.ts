@@ -8,6 +8,7 @@ import type {
   ErrorEngineConfig,
   ErrorEngine,
   HandleResult,
+  HistoryEntry,
   UIAction,
   RenderIntent,
   ErrorSlot,
@@ -216,6 +217,38 @@ function validateNumericConfig<TCode extends string, TField extends string>(
 }
 
 // ---------------------------------------------------------------------------
+// History config resolution
+// ---------------------------------------------------------------------------
+
+function resolveHistoryConfig<TCode extends string, TField extends string>(
+  config: ErrorEngineConfig<TCode, TField>,
+): { maxEntries: number } {
+  const isProd = process.env["NODE_ENV"] === "production";
+  const histConfig = config.history;
+
+  if (histConfig?.enabled === false) return { maxEntries: 0 };
+
+  if (histConfig?.maxEntries !== undefined) {
+    const raw = histConfig.maxEntries;
+    if (!Number.isInteger(raw) || raw < 0) {
+      const fallback = isProd ? 0 : 20;
+      warnInvalidConfig(
+        "history.maxEntries",
+        raw,
+        "a non-negative integer",
+        fallback,
+      );
+      return { maxEntries: fallback };
+    }
+    return { maxEntries: raw };
+  }
+
+  // No maxEntries given: explicit enabled:true overrides production default
+  const maxEntries = histConfig?.enabled === true ? 20 : isProd ? 0 : 20;
+  return { maxEntries };
+}
+
+// ---------------------------------------------------------------------------
 // createErrorEngine
 // ---------------------------------------------------------------------------
 
@@ -274,6 +307,10 @@ export function createErrorEngine<
 
   // ---- Init: router ----
   const router = createUIRouter<TCode, TField>();
+
+  // ---- Init: history ----
+  const { maxEntries: historyMaxEntries } = resolveHistoryConfig(config);
+  const historyEntries: HistoryEntry<TCode>[] = [];
 
   // ---- Init: aggregation ----
   const aggregationMap = new Map<string, number>();
@@ -471,7 +508,7 @@ export function createErrorEngine<
   // handle
   // ---------------------------------------------------------------------------
 
-  function handle(raw: unknown): HandleResult<TCode> {
+  function handleCore(raw: unknown): HandleResult<TCode> {
     const normalized = runNormalizationStep(raw);
 
     const transformStep = runTransformAndSuppress(normalized);
@@ -504,6 +541,31 @@ export function createErrorEngine<
     return { handled: true, error: current, uiAction: action };
   }
 
+  function handle(raw: unknown): HandleResult<TCode> {
+    const result = handleCore(raw);
+    if (historyMaxEntries > 0) {
+      const entry: HistoryEntry<TCode> = result.handled
+        ? {
+            error: result.error,
+            handled: true,
+            uiAction: result.uiAction,
+            handledAt: Date.now(),
+          }
+        : {
+            error: result.error,
+            handled: false,
+            uiAction: null,
+            reason: result.reason,
+            handledAt: Date.now(),
+          };
+      if (historyEntries.length >= historyMaxEntries) {
+        historyEntries.shift();
+      }
+      historyEntries.push(entry);
+    }
+    return result;
+  }
+
   // ---------------------------------------------------------------------------
   // clear / clearAll
   // ---------------------------------------------------------------------------
@@ -532,7 +594,23 @@ export function createErrorEngine<
     stateManager.destroy();
   }
 
-  return { handle, clear, clearAll, subscribe, destroy };
+  function getHistory(): HistoryEntry<TCode>[] {
+    return [...historyEntries];
+  }
+
+  function clearHistory(): void {
+    historyEntries.length = 0;
+  }
+
+  return {
+    handle,
+    clear,
+    clearAll,
+    subscribe,
+    destroy,
+    getHistory,
+    clearHistory,
+  };
 }
 
 // ---------------------------------------------------------------------------
