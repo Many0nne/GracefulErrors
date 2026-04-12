@@ -39,6 +39,11 @@
       "types": "./dist/testing.d.ts",
       "import": "./dist/testing.mjs",
       "require": "./dist/testing.cjs"
+    },
+    "./reporters": {
+      "types": "./dist/reporters/index.d.ts",
+      "import": "./dist/reporters/index.mjs",
+      "require": "./dist/reporters/index.cjs"
     }
   },
   "main": "./dist/index.cjs",

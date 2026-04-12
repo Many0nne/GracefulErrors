@@ -9,6 +9,7 @@ export default defineConfig({
     vue: "src/vue.ts",
     axios: "src/axios.ts",
     testing: "src/testing.ts",
+    "reporters/index": "src/reporters/index.ts",
   },
   format: ["esm", "cjs"],
   outExtension({ format }) {

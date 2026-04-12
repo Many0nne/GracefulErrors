@@ -14,6 +14,7 @@ import type {
   ErrorSlot,
   ErrorRegistryEntryFull,
   Normalizer,
+  ReporterContext,
   SuppressionDecision,
   TransformResult,
   StateListener,
@@ -509,26 +510,36 @@ export function createErrorEngine<
   // handle
   // ---------------------------------------------------------------------------
 
-  function handleCore(raw: unknown): HandleResult<TCode> {
+  function handleCore(raw: unknown): {
+    result: HandleResult<TCode>;
+    fingerprint: string;
+  } {
     const normalized = runNormalizationStep(raw);
 
     const transformStep = runTransformAndSuppress(normalized);
-    if (transformStep.suppressed) return transformStep.result;
-    const current = transformStep.current;
-
+    // Compute fingerprint on the best available error (normalized when suppressed early)
+    const current = transformStep.suppressed
+      ? normalized
+      : transformStep.current;
     const fingerprint = runFingerprintStep(current);
 
+    if (transformStep.suppressed) {
+      return { result: transformStep.result, fingerprint };
+    }
+
     const routingStep = runRoutingStep(current);
-    if (routingStep.suppressed) return routingStep.result;
+    if (routingStep.suppressed) {
+      return { result: routingStep.result, fingerprint };
+    }
     const { entry, action } = routingStep;
 
     runRoutingHooks(current, entry, action);
 
     const aggResult = runAggregationCheck(current, action);
-    if (aggResult !== null) return aggResult;
+    if (aggResult !== null) return { result: aggResult, fingerprint };
 
     const stateResult = runStateAndRender(current, action, entry, fingerprint);
-    if (stateResult !== null) return stateResult;
+    if (stateResult !== null) return { result: stateResult, fingerprint };
 
     // Steps 11–12: debug trace + return
     debugTrace(config.debug, {
@@ -539,11 +550,15 @@ export function createErrorEngine<
       placement: "active",
     });
 
-    return { handled: true, error: current, uiAction: action };
+    return {
+      result: { handled: true, error: current, uiAction: action },
+      fingerprint,
+    };
   }
 
   function handle(raw: unknown): HandleResult<TCode> {
-    const result = handleCore(raw);
+    const { result, fingerprint } = handleCore(raw);
+
     if (historyMaxEntries > 0) {
       const entry: HistoryEntry<TCode> = result.handled
         ? {
@@ -564,6 +579,20 @@ export function createErrorEngine<
       }
       historyEntries.push(entry);
     }
+
+    if (config.reporters && config.reporters.length > 0) {
+      const reporterContext: ReporterContext<TCode> = { result, fingerprint };
+      for (const reporter of config.reporters) {
+        Promise.resolve(reporter(result.error, reporterContext)).catch(
+          (err) => {
+            if (process.env["NODE_ENV"] !== "production") {
+              console.error("[gracefulerrors] reporter threw:", err);
+            }
+          },
+        );
+      }
+    }
+
     return result;
   }
 
