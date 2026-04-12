@@ -135,18 +135,18 @@ describe("Execution order", () => {
       "test",
     );
     expect(result.handled).toBe(false);
-    expect(result.uiAction).toBeNull();
+    expect(result).toMatchObject({ handled: false, reason: "suppressed" });
   });
 
-  it("suppressed error returns { handled: false, uiAction: null }", () => {
+  it("suppressed error returns { handled: false, reason: 'suppressed' }", () => {
     const engine = makeEngine({
       transform: () => ({ suppress: true, reason: "ignored" }),
     });
     const result = engine.handle(structuredNotFound);
     expect(result).toEqual({
       handled: false,
+      reason: "suppressed",
       error: expect.objectContaining({ code: "NOT_FOUND" }),
-      uiAction: null,
     });
   });
 });
@@ -251,8 +251,7 @@ describe("Routing", () => {
       onFallback,
     });
     const result = engine.handle({ code: "UNKNOWN_CODE" });
-    expect(result.handled).toBe(false);
-    expect(result.uiAction).toBeNull();
+    expect(result).toMatchObject({ handled: false, reason: "suppressed" });
     expect(onFallback).toHaveBeenCalledOnce();
     errSpy.mockRestore();
   });
@@ -276,8 +275,7 @@ describe("State integration", () => {
     const first = engine.handle(structuredNotFound);
     const second = engine.handle(structuredNotFound);
     expect(first.handled).toBe(true);
-    expect(second.handled).toBe(false);
-    expect(second.uiAction).toBeNull();
+    expect(second).toMatchObject({ handled: false, reason: "deduped" });
   });
 
   it("dedupe: different errors are not deduped", () => {
@@ -310,7 +308,7 @@ describe("State integration", () => {
     engine.handle({ code: "NOT_FOUND" }); // active
     engine.handle({ code: "UNAUTHORIZED" }); // queued
     const r3 = engine.handle({ code: "RATE_LIMITED" }); // overflow → rejected
-    expect(r3.handled).toBe(false);
+    expect(r3).toMatchObject({ handled: false, reason: "dropped" });
   });
 
   it("onDropped fires on queue_overflow", () => {
@@ -372,7 +370,7 @@ describe("Renderer", () => {
     expect(renderer.render).not.toHaveBeenCalled();
   });
 
-  it("silent route → renderer.render() NOT called, uiAction: null", () => {
+  it("silent route → renderer.render() NOT called, uiAction: 'silent'", () => {
     const silentRegistry: ErrorRegistry<"SILENT_ERR"> = {
       SILENT_ERR: { ui: "silent" },
     };
@@ -380,8 +378,7 @@ describe("Renderer", () => {
     const engine = createErrorEngine({ registry: silentRegistry, renderer });
     const result = engine.handle({ code: "SILENT_ERR" });
     expect(renderer.render).not.toHaveBeenCalled();
-    expect(result.handled).toBe(true);
-    expect(result.uiAction).toBeNull();
+    expect(result).toMatchObject({ handled: true, uiAction: "silent" });
   });
 
   it("renderer not provided → no error thrown", () => {
@@ -738,11 +735,11 @@ describe("HandleResult contract", () => {
     expect(result).toMatchObject({ handled: true, uiAction: "modal" });
   });
 
-  it("silent route → handled: true, uiAction: null", () => {
+  it("silent route → handled: true, uiAction: 'silent'", () => {
     const silentReg: ErrorRegistry<"S"> = { S: { ui: "silent" } };
     const engine = createErrorEngine({ registry: silentReg });
     const result = engine.handle({ code: "S" });
-    expect(result).toMatchObject({ handled: true, uiAction: null });
+    expect(result).toMatchObject({ handled: true, uiAction: "silent" });
   });
 
   it("transform mutation → HandleResult.error reflects transformed error", () => {

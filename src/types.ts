@@ -110,14 +110,13 @@ export interface ErrorEngine<TCode extends string = string> {
   subscribe(listener: StateListener<TCode>): () => void;
 }
 
-export interface HandleResult<TCode extends string = string> {
-  // true if the error reached routing (even if routed to 'silent')
-  // false if suppressed via transform or dropped (dedupe / queue overflow)
-  handled: boolean;
-  error: AppError<TCode>;
-  // null when handled is false, or when explicitly routed to 'silent'
-  uiAction: UIAction | null;
-}
+export type HandleResult<TCode extends string = string> =
+  | { handled: true; uiAction: UIAction; error: AppError<TCode> }
+  | {
+      handled: false;
+      reason: "suppressed" | "deduped" | "dropped";
+      error: AppError<TCode>;
+    };
 
 export type RoutingStrategy<
   TCode extends string = string,
@@ -151,7 +150,7 @@ export interface ErrorStateManager<TCode extends string = string> {
   canHandle(fingerprint: string): boolean;
   enqueue(
     slot: ErrorSlot<TCode> & { _pendingAction?: UIAction; ttl?: number },
-  ): "active" | "queued" | "rejected";
+  ): "active" | "queued" | "deduped" | "dropped";
   release(code: TCode): void;
   getActiveSlots(): ErrorSlot<TCode>[];
   getActiveCount(): number;

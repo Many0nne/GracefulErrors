@@ -322,7 +322,7 @@ export function createErrorEngine<
     if (transformResult !== null) {
       if (isSuppressionDecision(transformResult)) {
         safeCall(config.onSuppressed, normalized, transformResult.reason);
-        return { handled: false, error: normalized, uiAction: null };
+        return { handled: false, reason: "suppressed", error: normalized };
       }
       current = transformResult;
     }
@@ -342,7 +342,7 @@ export function createErrorEngine<
           `[gracefulerrors] Registry entry required for code: ${String(current.code)}`,
         );
       }
-      return { handled: false, error: current, uiAction: null };
+      return { handled: false, reason: "suppressed", error: current };
     }
 
     const routingContext = {
@@ -377,7 +377,7 @@ export function createErrorEngine<
         const lastAgg = aggregationMap.get(aggKey);
         const now = Date.now();
         if (lastAgg !== undefined && now - lastAgg < aggWindow) {
-          return { handled: false, error: current, uiAction: null };
+          return { handled: false, reason: "suppressed", error: current };
         }
         aggregationMap.set(aggKey, now);
         const prevTimer = aggregationTimers.get(aggKey);
@@ -403,8 +403,8 @@ export function createErrorEngine<
 
     const placement = stateManager.enqueue(slot);
 
-    if (placement === "rejected") {
-      return { handled: false, error: current, uiAction: null };
+    if (placement === "deduped" || placement === "dropped") {
+      return { handled: false, reason: placement, error: current };
     }
 
     // Step 10: renderer
@@ -450,7 +450,7 @@ export function createErrorEngine<
     return {
       handled: true,
       error: current,
-      uiAction: action === "silent" ? null : action,
+      uiAction: action,
     };
   }
 

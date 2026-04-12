@@ -14,9 +14,12 @@ expectAssignable<{
   context?: { field?: string; [key: string]: unknown };
 }>(appError);
 
-// HandleResult.uiAction is UIAction | null
-declare const result: HandleResult;
-expectType<UIAction | null>(result.uiAction);
+// HandleResult is a discriminated union on `handled`
+declare const handledResult: Extract<HandleResult, { handled: true }>;
+expectType<UIAction>(handledResult.uiAction);
+
+declare const unhandledResult: Extract<HandleResult, { handled: false }>;
+expectType<"suppressed" | "deduped" | "dropped">(unhandledResult.reason);
 
 // ErrorEngineConfig.fallback.ui does not include 'inline'
 type FallbackUI = NonNullable<ErrorEngineConfig["fallback"]>["ui"];
