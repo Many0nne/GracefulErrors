@@ -226,6 +226,68 @@ export type ErrorReporter<TCode extends string = string> = (
   context: ReporterContext<TCode>,
 ) => Promise<void> | void;
 
+// ---------------------------------------------------------------------------
+// Server engine — timer-free, renderer-free variant for SSR
+// ---------------------------------------------------------------------------
+
+/**
+ * A stripped-down engine for server-side usage.
+ * No timers, no renderer, no state queue — safe for per-request instantiation.
+ */
+export interface ServerErrorEngine<TCode extends string = string> {
+  handle(raw: unknown): HandleResult<TCode>;
+  getHistory(): HistoryEntry<TCode>[];
+  clearHistory(): void;
+}
+
+/**
+ * Config for createServerEngine.
+ *
+ * Intentionally omits timer-based and browser-specific options:
+ * - No `renderer` (DOM-only)
+ * - No `dedupeWindow`, `maxConcurrent`, `maxQueue` (no state queue)
+ * - No `aggregation` (timer-based burst suppression)
+ * - No `modalDismissTimeoutMs` (browser-only warning)
+ *
+ * Use this for normalizing + routing + reporting errors in server components,
+ * loaders, and API routes — then forward them to a monitoring tool via `reporters`.
+ */
+export interface ServerErrorEngineConfig<
+  TCode extends string = string,
+  TField extends string = string,
+> {
+  registry: ErrorRegistry<TCode>;
+  requireRegistry?: boolean;
+  /** Default: true. When false, engine uses 'toast' as the hard default route. */
+  allowFallback?: boolean;
+  fallback?: {
+    ui: "toast" | "modal" | "silent";
+    message?: string;
+  };
+  normalizers?: Normalizer<TCode, TField>[];
+  /** If both normalizer and normalizers are provided, normalizer takes precedence. */
+  normalizer?: Normalizer<TCode, TField>;
+  fingerprint?: (error: AppError<TCode, TField>) => string;
+  transform?: (
+    error: AppError<TCode, TField>,
+    context: TransformContext,
+  ) => TransformResult<TCode, TField>;
+  routingStrategy?: RoutingStrategy<TCode, TField>;
+  onError?: (raw: unknown) => void;
+  onNormalized?: (error: AppError<TCode, TField>) => void;
+  onSuppressed?: (error: AppError<TCode, TField>, reason: string) => void;
+  onRouted?: (error: AppError<TCode, TField>, action: UIAction) => void;
+  onFallback?: (error: AppError<TCode, TField>) => void;
+  onErrorAsync?: (error: AppError<TCode, TField>) => Promise<void>;
+  debug?: boolean | { trace?: boolean };
+  reporters?: ErrorReporter<TCode>[];
+  history?: HistoryConfig;
+}
+
+// ---------------------------------------------------------------------------
+// Engine config type — history is optional; see HistoryConfig for defaults
+// ---------------------------------------------------------------------------
+
 // Engine config type — history is optional; see HistoryConfig for defaults
 export interface ErrorEngineConfig<
   TCode extends string = string,

@@ -10,6 +10,7 @@ export default defineConfig({
     axios: "src/axios.ts",
     testing: "src/testing.ts",
     "reporters/index": "src/reporters/index.ts",
+    server: "src/server.ts",
   },
   format: ["esm", "cjs"],
   outExtension({ format }) {
