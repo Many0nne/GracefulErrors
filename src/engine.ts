@@ -287,24 +287,19 @@ export function createErrorEngine<
   });
 
   // ---------------------------------------------------------------------------
-  // handle
+  // handle — step helpers (closures over engine state)
   // ---------------------------------------------------------------------------
 
-  function handle(raw: unknown): HandleResult<TCode> {
-    // Step 1: onError — always first, even if normalization will fail
+  // Steps 1–3: onError → normalize → onNormalized + async side-effect
+  function runNormalizationStep(raw: unknown): AppError<TCode, TField> {
     safeCall(config.onError, raw);
-
-    // Step 2: normalize
     const normalized = runNormalizerPipeline(
       raw,
       customNormalizers,
       resolvedBuiltIn,
       config.onError,
     ) as AppError<TCode, TField>;
-
-    // Step 3: onNormalized + fire-and-forget async side-effect
     safeCall(config.onNormalized, normalized);
-
     if (config.onErrorAsync) {
       Promise.resolve(config.onErrorAsync(normalized)).catch((err) => {
         if (process.env["NODE_ENV"] === "development") {
@@ -312,29 +307,49 @@ export function createErrorEngine<
         }
       });
     }
+    return normalized;
+  }
 
-    // Step 4: transform
+  // Steps 4–5: transform → suppression check
+  type TransformStep =
+    | { suppressed: true; result: HandleResult<TCode> }
+    | { suppressed: false; current: AppError<TCode, TField> };
+
+  function runTransformAndSuppress(
+    normalized: AppError<TCode, TField>,
+  ): TransformStep {
     const transformResult = safeTransform(config.transform, normalized);
-
-    // Step 5: suppression or apply transform
-    let current: AppError<TCode, TField> = normalized;
-
     if (transformResult !== null) {
       if (isSuppressionDecision(transformResult)) {
         safeCall(config.onSuppressed, normalized, transformResult.reason);
-        return { handled: false, reason: "suppressed", error: normalized };
+        return {
+          suppressed: true,
+          result: { handled: false, reason: "suppressed", error: normalized },
+        };
       }
-      current = transformResult;
+      return { suppressed: false, current: transformResult };
     }
+    return { suppressed: false, current: normalized };
+  }
 
-    // Step 6: fingerprint
-    const fingerprint = config.fingerprint
+  // Step 6: compute fingerprint
+  function runFingerprintStep(current: AppError<TCode, TField>): string {
+    return config.fingerprint
       ? config.fingerprint(current)
       : defaultFingerprint(current);
+  }
 
-    // Step 7: registry lookup + route
+  // Step 7: registry lookup → route (early-exit when requireRegistry and no entry)
+  type RoutingStep =
+    | { suppressed: true; result: HandleResult<TCode> }
+    | {
+        suppressed: false;
+        entry: ErrorRegistryEntryFull<TCode> | undefined;
+        action: UIAction;
+      };
+
+  function runRoutingStep(current: AppError<TCode, TField>): RoutingStep {
     const entry = lookupEntry(config.registry, current.code);
-
     if (!entry && config.requireRegistry) {
       safeCall(config.onFallback, current);
       if (process.env["NODE_ENV"] !== "production") {
@@ -342,14 +357,15 @@ export function createErrorEngine<
           `[gracefulerrors] Registry entry required for code: ${String(current.code)}`,
         );
       }
-      return { handled: false, reason: "suppressed", error: current };
+      return {
+        suppressed: true,
+        result: { handled: false, reason: "suppressed", error: current },
+      };
     }
-
     const routingContext = {
       activeCount: stateManager.getActiveCount(),
       queueLength: stateManager.getQueueLength(),
     };
-
     const action = router.route(current, config.registry, {
       fallback: config.fallback,
       requireRegistry: config.requireRegistry,
@@ -358,40 +374,58 @@ export function createErrorEngine<
       routingContext,
       resolvedEntry: entry,
     }) as UIAction;
+    return { suppressed: false, entry, action };
+  }
 
-    // Step 8: onFallback (no match, no requireRegistry) + onRouted
+  // Step 8: routing lifecycle hooks (onFallback when unmatched, onRouted)
+  function runRoutingHooks(
+    current: AppError<TCode, TField>,
+    entry: ErrorRegistryEntryFull<TCode> | undefined,
+    action: UIAction,
+  ): void {
     if (!entry && !config.requireRegistry) {
       safeCall(config.onFallback, current);
     }
     safeCall(config.onRouted, current, action);
+  }
 
-    // Step 8.5: aggregation check
+  // Step 8.5: aggregation window — suppresses duplicate action within window
+  function runAggregationCheck(
+    current: AppError<TCode, TField>,
+    action: UIAction,
+  ): HandleResult<TCode> | null {
     const aggConfig = config.aggregation;
-    if (aggConfig) {
-      const aggEnabled =
-        aggConfig === true ||
-        (typeof aggConfig === "object" && aggConfig.enabled);
-      if (aggEnabled) {
-        const aggWindow = resolvedAggWindow;
-        const aggKey = action;
-        const lastAgg = aggregationMap.get(aggKey);
-        const now = Date.now();
-        if (lastAgg !== undefined && now - lastAgg < aggWindow) {
-          return { handled: false, reason: "suppressed", error: current };
-        }
-        aggregationMap.set(aggKey, now);
-        const prevTimer = aggregationTimers.get(aggKey);
-        if (prevTimer !== undefined) clearTimeout(prevTimer);
-        aggregationTimers.set(
-          aggKey,
-          setTimeout(() => {
-            aggregationMap.delete(aggKey);
-            aggregationTimers.delete(aggKey);
-          }, aggWindow),
-        );
-      }
+    if (!aggConfig) return null;
+    const aggEnabled =
+      aggConfig === true ||
+      (typeof aggConfig === "object" && aggConfig.enabled);
+    if (!aggEnabled) return null;
+    const aggKey = action;
+    const lastAgg = aggregationMap.get(aggKey);
+    const now = Date.now();
+    if (lastAgg !== undefined && now - lastAgg < resolvedAggWindow) {
+      return { handled: false, reason: "suppressed", error: current };
     }
+    aggregationMap.set(aggKey, now);
+    const prevTimer = aggregationTimers.get(aggKey);
+    if (prevTimer !== undefined) clearTimeout(prevTimer);
+    aggregationTimers.set(
+      aggKey,
+      setTimeout(() => {
+        aggregationMap.delete(aggKey);
+        aggregationTimers.delete(aggKey);
+      }, resolvedAggWindow),
+    );
+    return null;
+  }
 
+  // Steps 9–10: enqueue into state manager → invoke renderer
+  function runStateAndRender(
+    current: AppError<TCode, TField>,
+    action: UIAction,
+    entry: ErrorRegistryEntryFull<TCode> | undefined,
+    fingerprint: string,
+  ): HandleResult<TCode> | null {
     const slot: ErrorSlot<TCode> & { ttl?: number; _pendingAction: UIAction } =
       {
         error: current,
@@ -400,21 +434,16 @@ export function createErrorEngine<
         ttl: entry?.ttl,
         _pendingAction: action,
       };
-
     const placement = stateManager.enqueue(slot);
-
     if (placement === "deduped" || placement === "dropped") {
       return { handled: false, reason: placement, error: current };
     }
-
-    // Step 10: renderer
     if (config.renderer && action !== "silent" && action !== "inline") {
       const intent: RenderIntent<TCode> = {
         ui: action,
         error: current,
         entry: entry ?? buildFallbackEntry(action, config),
       };
-
       let onDismiss: (() => void) | undefined;
       if (action === "modal") {
         let dismissTimeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -433,25 +462,46 @@ export function createErrorEngine<
           stateManager.release(current.code as TCode);
         };
       }
-
       config.renderer.render(intent, { onDismiss });
     }
+    return null;
+  }
 
-    // Step 11: debug trace
+  // ---------------------------------------------------------------------------
+  // handle
+  // ---------------------------------------------------------------------------
+
+  function handle(raw: unknown): HandleResult<TCode> {
+    const normalized = runNormalizationStep(raw);
+
+    const transformStep = runTransformAndSuppress(normalized);
+    if (transformStep.suppressed) return transformStep.result;
+    const current = transformStep.current;
+
+    const fingerprint = runFingerprintStep(current);
+
+    const routingStep = runRoutingStep(current);
+    if (routingStep.suppressed) return routingStep.result;
+    const { entry, action } = routingStep;
+
+    runRoutingHooks(current, entry, action);
+
+    const aggResult = runAggregationCheck(current, action);
+    if (aggResult !== null) return aggResult;
+
+    const stateResult = runStateAndRender(current, action, entry, fingerprint);
+    if (stateResult !== null) return stateResult;
+
+    // Steps 11–12: debug trace + return
     debugTrace(config.debug, {
       raw,
       normalized: current,
       action,
       entry,
-      placement,
+      placement: "active",
     });
 
-    // Step 12: return
-    return {
-      handled: true,
-      error: current,
-      uiAction: action,
-    };
+    return { handled: true, error: current, uiAction: action };
   }
 
   // ---------------------------------------------------------------------------
