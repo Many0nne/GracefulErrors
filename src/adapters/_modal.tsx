@@ -37,35 +37,6 @@ export function ModalDialog({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onDismiss]);
 
-  // Focus trap: keep Tab / Shift+Tab cycling within the dialog.
-  const handleDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== "Tab") return;
-
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    const focusableSelectors =
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-    const focusableElements = Array.from(
-      dialog.querySelectorAll<HTMLElement>(focusableSelectors),
-    );
-
-    if (focusableElements.length === 0) return;
-
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
-
-    if (e.shiftKey) {
-      if (document.activeElement === firstElement) {
-        e.preventDefault();
-        lastElement.focus();
-      }
-    } else if (document.activeElement === lastElement) {
-      e.preventDefault();
-      firstElement.focus();
-    }
-  };
-
   return (
     <div
       style={{
@@ -83,7 +54,6 @@ export function ModalDialog({
         aria-modal="true"
         aria-labelledby={messageId}
         tabIndex={-1}
-        onKeyDown={handleDialogKeyDown}
         open
         style={{
           background: "white",
