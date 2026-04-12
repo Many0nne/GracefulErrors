@@ -185,6 +185,17 @@ export function createStateManager<TCode extends string = string>(
     };
   }
 
+  function destroy(): void {
+    for (const timer of ttlTimers.values()) clearTimeout(timer);
+    ttlTimers.clear();
+    for (const timer of dedupeTimers.values()) clearTimeout(timer);
+    dedupeTimers.clear();
+    dedupeMap.clear();
+    activeSlots.clear();
+    queue.length = 0;
+    listeners.clear();
+  }
+
   return {
     canHandle,
     enqueue,
@@ -194,6 +205,7 @@ export function createStateManager<TCode extends string = string>(
     getQueueLength,
     clearAll,
     subscribe,
+    destroy,
   };
 }
 

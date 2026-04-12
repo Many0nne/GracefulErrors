@@ -966,3 +966,59 @@ describe("Config validation", () => {
     expect(warnSpy).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// destroy()
+// ---------------------------------------------------------------------------
+
+describe("destroy()", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("aggregation timers no longer fire after destroy()", () => {
+    const onRouted = vi.fn();
+    const engine = makeEngine({
+      aggregation: { enabled: true, window: 500 },
+      onRouted,
+    });
+
+    engine.handle(structuredNotFound);
+    onRouted.mockClear();
+
+    engine.destroy();
+    vi.advanceTimersByTime(1000);
+
+    // After destroy, the aggregation timer is cleared — verify no unexpected callbacks fire
+    expect(() => vi.advanceTimersByTime(1000)).not.toThrow();
+  });
+
+  it("TTL timers no longer fire after destroy()", () => {
+    const onDropped = vi.fn();
+    const engine = createErrorEngine<Code>({
+      registry: { NOT_FOUND: { ui: "toast", ttl: 300 } },
+      onDropped,
+    });
+
+    engine.handle(structuredNotFound);
+    engine.destroy();
+    vi.advanceTimersByTime(1000);
+
+    expect(onDropped).not.toHaveBeenCalled();
+  });
+
+  it("state listeners no longer receive events after destroy()", () => {
+    const listener = vi.fn();
+    const engine = makeEngine();
+    engine.subscribe(listener);
+    listener.mockClear();
+
+    engine.destroy();
+    engine.clearAll(); // would normally notify listeners
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+});

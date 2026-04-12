@@ -22,6 +22,12 @@ export function ErrorEngineProvider<TCode extends string = string>({
 }): JSX.Element {
   const contextValue = useMemo(() => ({ engine }), [engine]);
 
+  useEffect(() => {
+    return () => {
+      engine.destroy();
+    };
+  }, [engine]);
+
   return (
     <ErrorEngineContext.Provider value={contextValue}>
       {children}

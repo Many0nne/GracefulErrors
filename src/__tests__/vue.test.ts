@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { defineComponent, h, onMounted } from "vue";
+import { createApp, defineComponent, h, onMounted } from "vue";
 import { mount } from "@vue/test-utils";
 import {
   createErrorEnginePlugin,
@@ -20,6 +20,7 @@ function makeEngine(overrides?: Partial<ErrorEngine>): ErrorEngine {
     clear: vi.fn(),
     clearAll: vi.fn(),
     subscribe: vi.fn().mockReturnValue(() => {}),
+    destroy: vi.fn(),
     ...overrides,
   };
 }
@@ -351,5 +352,22 @@ describe("ErrorBoundaryWithEngine", () => {
     });
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain("fallback");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createErrorEnginePlugin — destroy() on app unmount
+// ---------------------------------------------------------------------------
+
+describe("createErrorEnginePlugin destroy() on app unmount", () => {
+  it("calls engine.destroy() when app.unmount() is called", () => {
+    const engine = makeEngine();
+    const app = createApp({ render: () => null });
+    app.use(createErrorEnginePlugin(engine));
+    app.mount(document.createElement("div"));
+
+    app.unmount();
+
+    expect(engine.destroy).toHaveBeenCalledTimes(1);
   });
 });

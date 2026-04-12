@@ -25,6 +25,11 @@ export function createErrorEnginePlugin<TCode extends string = string>(
   return {
     install(app) {
       app.provide(ErrorEngineKey, engine);
+      const originalUnmount = app.unmount.bind(app);
+      app.unmount = () => {
+        engine.destroy();
+        originalUnmount();
+      };
     },
   };
 }

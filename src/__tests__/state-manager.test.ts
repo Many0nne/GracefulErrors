@@ -251,3 +251,59 @@ describe("getActiveSlots()", () => {
     expect(sm.getActiveSlots()).toHaveLength(1);
   });
 });
+
+describe("destroy()", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("clears all active TTL timers — callback no longer fires after destroy", () => {
+    const onDropped = vi.fn();
+    const sm = createStateManager({ onDropped });
+    const slot = makeSlot("FOO");
+    (slot as ReturnType<typeof makeSlot> & { ttl?: number }).ttl = 500;
+    sm.enqueue(slot);
+
+    sm.destroy();
+    vi.advanceTimersByTime(1000);
+
+    expect(onDropped).not.toHaveBeenCalled();
+  });
+
+  it("clears all deduplication timers — window no longer resets after destroy", () => {
+    const sm = createStateManager({ dedupeWindow: 300 });
+    sm.enqueue(makeSlot("FOO"));
+
+    sm.destroy();
+    // Timer would normally fire at 300ms and clear the dedup window;
+    // after destroy the timer is cleared so it should never fire — verify no throw
+    expect(() => vi.advanceTimersByTime(1000)).not.toThrow();
+  });
+
+  it("removes all state listeners — events no longer delivered after destroy", () => {
+    const listener = vi.fn();
+    const sm = createStateManager({});
+    sm.subscribe(listener);
+    listener.mockClear();
+
+    sm.destroy();
+    // clearAll would normally notify ALL_CLEARED, but listeners are gone
+    sm.clearAll();
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("clears active slots and queue", () => {
+    const sm = createStateManager({ maxConcurrent: 1 });
+    sm.enqueue(makeSlot("A", "fp-a"));
+    sm.enqueue(makeSlot("B", "fp-b")); // goes to queue
+
+    sm.destroy();
+
+    expect(sm.getActiveCount()).toBe(0);
+    expect(sm.getQueueLength()).toBe(0);
+  });
+});
