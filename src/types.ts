@@ -68,6 +68,18 @@ export type UIOptions =
 
 export type UIAction = UIOptions["ui"];
 
+/**
+ * A function that resolves a registry message string (treated as a translation key)
+ * into a localized string. Receives the key and the normalized error for interpolation.
+ *
+ * Only called when `entry.message` is a plain string. Function-based messages bypass
+ * the resolver since they are already dynamic.
+ */
+export type MessageResolver<TCode extends string = string> = (
+  key: string,
+  error: AppError<TCode>,
+) => string;
+
 // Registry types
 export type ErrorRegistryEntry<TCode extends string = string> = {
   message?: string | ((error: AppError<TCode>) => string);
@@ -91,6 +103,8 @@ export type RenderIntent<TCode extends string = string> = {
   ui: UIAction;
   error: AppError<TCode>;
   entry: ErrorRegistryEntryFull<TCode>;
+  /** @internal Forwarded from engine config — passed to resolveMessage by renderer adapters. */
+  messageResolver?: MessageResolver<TCode>;
 };
 
 export interface RendererAdapter {
@@ -282,6 +296,22 @@ export interface ServerErrorEngineConfig<
   debug?: boolean | { trace?: boolean };
   reporters?: ErrorReporter<TCode>[];
   history?: HistoryConfig;
+  /**
+   * Resolves registry message strings as i18n translation keys.
+   * When provided, string-based `message` values in the registry are passed through
+   * this function instead of being used verbatim. Function-based messages bypass
+   * the resolver since they are already dynamic.
+   *
+   * @example
+   * ```ts
+   * import i18n from './i18n'
+   * const engine = createServerEngine({
+   *   registry: { AUTH_FAILED: { ui: 'toast', message: 'errors.auth_failed' } },
+   *   messageResolver: (key, error) => i18n.t(key, { status: error.status }),
+   * })
+   * ```
+   */
+  messageResolver?: MessageResolver<TCode>;
 }
 
 // ---------------------------------------------------------------------------
@@ -357,4 +387,20 @@ export interface ErrorEngineConfig<
    * from `gracefulerrors/reporters`.
    */
   reporters?: ErrorReporter<TCode>[];
+  /**
+   * Resolves registry message strings as i18n translation keys.
+   * When provided, string-based `message` values in the registry are passed through
+   * this function instead of being used verbatim. Function-based messages bypass
+   * the resolver since they are already dynamic.
+   *
+   * @example
+   * ```ts
+   * import i18n from './i18n'
+   * const engine = createErrorEngine({
+   *   registry: { AUTH_FAILED: { ui: 'toast', message: 'errors.auth_failed' } },
+   *   messageResolver: (key, error) => i18n.t(key, { status: error.status }),
+   * })
+   * ```
+   */
+  messageResolver?: MessageResolver<TCode>;
 }

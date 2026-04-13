@@ -1205,3 +1205,59 @@ describe("clearHistory()", () => {
     expect(history[0].error.code).toBe("UNAUTHORIZED");
   });
 });
+
+// ---------------------------------------------------------------------------
+// messageResolver
+// ---------------------------------------------------------------------------
+
+describe("messageResolver", () => {
+  it("forwards messageResolver to RenderIntent when renderer is present", () => {
+    const renderer = makeRenderer();
+    const resolver = vi.fn((key: string) => `[t] ${key}`);
+    const engine = makeEngine({ messageResolver: resolver }, renderer);
+
+    engine.handle(structuredNotFound);
+
+    const intent = (renderer.render as ReturnType<typeof vi.fn>).mock
+      .calls[0][0];
+    expect(intent.messageResolver).toBe(resolver);
+  });
+
+  it("RenderIntent has no messageResolver when none is configured", () => {
+    const renderer = makeRenderer();
+    const engine = makeEngine({}, renderer);
+
+    engine.handle(structuredNotFound);
+
+    const intent = (renderer.render as ReturnType<typeof vi.fn>).mock
+      .calls[0][0];
+    expect(intent.messageResolver).toBeUndefined();
+  });
+
+  it("function-based message bypasses messageResolver", () => {
+    const funcRegistry: ErrorRegistry<Code> = {
+      ...registry,
+      NOT_FOUND: {
+        ui: "toast",
+        message: (err) => `dynamic:${err.code}`,
+      },
+    };
+    const renderer = makeRenderer();
+    const resolver = vi.fn(() => "should not be called");
+    const engine = createErrorEngine<Code>({
+      registry: funcRegistry,
+      renderer,
+      messageResolver: resolver,
+    });
+
+    engine.handle(structuredNotFound);
+
+    // Resolver is stored in intent but resolveMessage skips it for function messages
+    const intent = (renderer.render as ReturnType<typeof vi.fn>).mock
+      .calls[0][0];
+    expect(intent.messageResolver).toBe(resolver);
+    // The resolver itself should not have been called by the engine —
+    // it is called lazily by the adapter only for string messages.
+    expect(resolver).not.toHaveBeenCalled();
+  });
+});

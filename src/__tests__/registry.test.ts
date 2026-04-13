@@ -42,6 +42,42 @@ describe("resolveMessage", () => {
   it("returns undefined when entry has no message", () => {
     expect(resolveMessage({ ui: "silent" }, error)).toBeUndefined();
   });
+
+  describe("messageResolver", () => {
+    it("passes string message through resolver as a translation key", () => {
+      const entry = registry["NOT_FOUND"]!;
+      const resolver = (key: string) => `[translated] ${key}`;
+      expect(resolveMessage(entry, error, resolver)).toBe(
+        "[translated] Resource not found",
+      );
+    });
+
+    it("passes error to resolver for interpolation", () => {
+      const entry = registry["NOT_FOUND"]!;
+      const errorWithStatus: AppError<TestCode> = {
+        code: "NOT_FOUND",
+        status: 404,
+      };
+      const resolver = (key: string, err: AppError<TestCode>) =>
+        `${key}:${err.status}`;
+      expect(resolveMessage(entry, errorWithStatus, resolver)).toBe(
+        "Resource not found:404",
+      );
+    });
+
+    it("bypasses resolver when message is a function", () => {
+      const entry = registry["UNAUTHORIZED"]!;
+      const resolver = () => "should not be called";
+      expect(resolveMessage(entry, error, resolver)).toBe(
+        "Unauthorized: UNAUTHORIZED",
+      );
+    });
+
+    it("returns undefined when entry has no message, even with resolver", () => {
+      const resolver = () => "should not be called";
+      expect(resolveMessage({ ui: "silent" }, error, resolver)).toBeUndefined();
+    });
+  });
 });
 
 describe("mergeRegistries", () => {
