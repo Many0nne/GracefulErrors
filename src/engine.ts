@@ -482,6 +482,7 @@ export function createErrorEngine<
         ui: action,
         error: current,
         entry: entry ?? buildFallbackEntry(action, config),
+        messageResolver: config.messageResolver,
       };
       let onDismiss: (() => void) | undefined;
       if (action === "modal") {

@@ -18,6 +18,7 @@ export type {
   ErrorRegistry,
   ErrorRegistryEntry,
   ErrorRegistryEntryFull,
+  MessageResolver,
   Normalizer,
   RendererAdapter,
   RenderIntent,

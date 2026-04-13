@@ -3,6 +3,7 @@ import type {
   ErrorRegistry,
   ErrorRegistryEntry,
   ErrorRegistryEntryFull,
+  MessageResolver,
 } from "./types";
 
 export function lookupEntry<TCode extends string>(
@@ -17,9 +18,13 @@ export function lookupEntry<TCode extends string>(
 export function resolveMessage<TCode extends string>(
   entry: ErrorRegistryEntry<TCode>,
   error: AppError<TCode>,
+  messageResolver?: MessageResolver<TCode>,
 ): string | undefined {
   if (entry.message === undefined) return undefined;
+  // Function-based messages are already dynamic — bypass the resolver.
   if (typeof entry.message === "function") return entry.message(error);
+  // String messages are treated as i18n keys when a resolver is provided.
+  if (messageResolver) return messageResolver(entry.message, error);
   return entry.message;
 }
 

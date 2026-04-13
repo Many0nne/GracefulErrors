@@ -7,7 +7,7 @@ export function createHotToastAdapter(): RendererAdapter {
   return createBaseAdapter<string>(
     (intent: RenderIntent) => {
       const message =
-        resolveMessage(intent.entry, intent.error) ??
+        resolveMessage(intent.entry, intent.error, intent.messageResolver) ??
         intent.error.message ??
         "An error occurred";
 

@@ -7,7 +7,7 @@ export function createSonnerAdapter(): RendererAdapter {
   return createBaseAdapter<string | number>(
     (intent: RenderIntent) => {
       const message =
-        resolveMessage(intent.entry, intent.error) ??
+        resolveMessage(intent.entry, intent.error, intent.messageResolver) ??
         intent.error.message ??
         "An error occurred";
 

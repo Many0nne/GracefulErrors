@@ -180,7 +180,7 @@ export function createBaseAdapter<TId>(
 
       case "modal": {
         const message =
-          resolveMessage(intent.entry, intent.error) ??
+          resolveMessage(intent.entry, intent.error, intent.messageResolver) ??
           intent.error.message ??
           "An error occurred";
         const opts = intent.entry.uiOptions ?? {};
