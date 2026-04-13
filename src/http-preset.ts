@@ -71,6 +71,30 @@ const defaults: ErrorRegistry<HttpPresetCode> = {
   },
 };
 
+/**
+ * Returns a ready-to-use error registry covering the most common HTTP status codes
+ * (400, 401, 403, 404, 409, 422, 429, 500, 502, 503, 504) with sensible default
+ * messages and UI actions.
+ *
+ * Pass an `overrides` map to replace individual entries while keeping the rest of
+ * the defaults intact. The returned registry can be spread into a larger registry
+ * or passed directly to `createErrorEngine`.
+ *
+ * @param overrides - Partial map of `HttpPresetCode` → `ErrorRegistryEntry` to
+ *   replace individual defaults.
+ * @returns A complete `ErrorRegistry<HttpPresetCode>` with defaults merged with
+ *   any provided overrides.
+ *
+ * @example
+ * ```ts
+ * const engine = createErrorEngine({
+ *   registry: {
+ *     ...createHttpPreset({ HTTP_401: { ui: 'modal', message: 'Please log in again.' } }),
+ *     CUSTOM_ERROR: { ui: 'toast', message: 'Something went wrong.' },
+ *   },
+ * });
+ * ```
+ */
 export function createHttpPreset(overrides?: {
   [K in HttpPresetCode]?: ErrorRegistryEntry<HttpPresetCode>;
 }): ErrorRegistry<HttpPresetCode> {

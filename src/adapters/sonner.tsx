@@ -3,6 +3,32 @@ import type { RendererAdapter, RenderIntent } from "../types";
 import { resolveMessage } from "../registry";
 import { createBaseAdapter } from "./_modal";
 
+/**
+ * Creates a `RendererAdapter` backed by [Sonner](https://sonner.emilkowal.ski/).
+ *
+ * Supports `'toast'` and `'modal'` UI actions. The severity from the registry entry's
+ * `uiOptions.severity` maps to the corresponding Sonner method
+ * (`toast.error`, `toast.warning`, `toast.info`, `toast.success`).
+ *
+ * Mount `<SonnerToaster />` (re-exported as a convenience) once in your app root
+ * before using this adapter.
+ *
+ * @returns A `RendererAdapter` instance to pass to `createErrorEngine({ renderer })`.
+ *
+ * @example
+ * ```tsx
+ * import { SonnerToaster, createSonnerAdapter } from 'gracefulerrors/adapters/sonner';
+ *
+ * const engine = createErrorEngine({
+ *   registry,
+ *   renderer: createSonnerAdapter(),
+ * });
+ *
+ * function App() {
+ *   return <><SonnerToaster /><YourApp /></>;
+ * }
+ * ```
+ */
 export function createSonnerAdapter(): RendererAdapter {
   return createBaseAdapter<string | number>(
     (intent: RenderIntent) => {

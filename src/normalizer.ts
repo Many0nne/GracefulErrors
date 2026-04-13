@@ -39,6 +39,17 @@ function isStructuredError(raw: unknown): raw is {
   return typeof r["code"] === "string";
 }
 
+/**
+ * Built-in normalizer that handles the most common raw error shapes out of the box:
+ * native `Response` objects (4xx/5xx), Axios-like errors, plain objects with a `code`
+ * string, and native JS `Error` instances.
+ *
+ * This function is intentionally **synchronous** and does **not** attempt to read the
+ * `Response` body (e.g. via `response.json()`). Body parsing is async and the body
+ * stream may already have been consumed by the time the error reaches the normalizer.
+ * Callers that need structured body data should clone and parse the response before
+ * passing it to the engine, or provide a custom normalizer via `normalizers`.
+ */
 export function builtInNormalizer(raw: unknown): AppError | null {
   // AbortError — pass-through, never an AppError
   if (raw instanceof Error && raw.name === "AbortError") {
@@ -148,7 +159,11 @@ export function runNormalizerPipeline<
     onError?.(err);
   }
 
-  // If final current is null → synthesize GRACEFULERRORS_UNHANDLED
+  // If final current is null, every normalizer returned null — the raw value was
+  // unrecognized by all normalizers. GRACEFULERRORS_UNHANDLED is a sentinel that
+  // signals "no normalizer claimed this error". This differs from GRACEFULERRORS_UNKNOWN
+  // (a known JS error with no stable code) and lets registry authors opt-in to handling
+  // truly unexpected inputs without silently swallowing them.
   if (current === null) {
     return { code: "GRACEFULERRORS_UNHANDLED" as TCode, raw } as AppError<
       TCode,

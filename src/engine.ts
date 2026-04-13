@@ -254,6 +254,39 @@ function resolveHistoryConfig<TCode extends string, TField extends string>(
 // createErrorEngine
 // ---------------------------------------------------------------------------
 
+/**
+ * Creates a GracefulErrors engine — the central hub that normalizes, routes,
+ * deduplicates, and renders errors through a configurable pipeline.
+ *
+ * The pipeline follows numbered steps 1–12 internally:
+ * 1. `onError` hook
+ * 2. Normalizer pipeline (custom → built-in)
+ * 3. `onNormalized` hook + `onErrorAsync` side-effect
+ * 4. `transform` function (optional mutation or suppression)
+ * 5. Suppression check
+ * 6. Fingerprint computation
+ * 7. Registry lookup + routing (early-exit when `requireRegistry` and no entry)
+ * 8. `onFallback` / `onRouted` lifecycle hooks
+ * 8.5. Aggregation window check
+ * 9. State manager enqueue (dedup / queue overflow guard)
+ * 10. Renderer invocation
+ * 11. Debug trace
+ * 12. Return `HandleResult`
+ *
+ * @param config - Engine configuration. See `ErrorEngineConfig` for all options.
+ * @returns An `ErrorEngine` instance with `handle`, `clear`, `clearAll`,
+ *   `subscribe`, `destroy`, `getHistory`, and `clearHistory` methods.
+ *
+ * @example
+ * ```ts
+ * const engine = createErrorEngine({
+ *   registry: {
+ *     AUTH_FAILED: { ui: 'toast', message: 'Session expired. Please log in.' },
+ *   },
+ * });
+ * engine.handle(error);
+ * ```
+ */
 export function createErrorEngine<
   TCode extends string = string,
   TField extends string = string,
@@ -648,6 +681,28 @@ export function createErrorEngine<
 // createFetch
 // ---------------------------------------------------------------------------
 
+/**
+ * Wraps the native `fetch` API and forwards non-OK responses and network errors
+ * to a GracefulErrors engine.
+ *
+ * Modes:
+ * - `throw`  (default) — forward to engine, then re-throw so calling code can react
+ * - `handle`           — forward to engine, then swallow (resolves `undefined`)
+ * - `silent`           — pass-through without notifying the engine
+ *
+ * `AbortError` is always re-thrown without being forwarded to the engine, regardless
+ * of mode — cancellations are not errors.
+ *
+ * @param engine - A GracefulErrors engine instance created with `createErrorEngine`.
+ * @param options - Optional mode override. Defaults to `{ mode: 'throw' }`.
+ * @returns A drop-in replacement for `fetch` with the same signature.
+ *
+ * @example
+ * ```ts
+ * const safeFetch = createFetch(engine);
+ * const data = await safeFetch('/api/users').then(r => r?.json());
+ * ```
+ */
 export function createFetch(
   engine: ErrorEngine,
   options: { mode?: "throw" | "handle" | "silent" } = {},
