@@ -74,14 +74,14 @@ This project follows [Conventional Commits](https://www.conventionalcommits.org/
 <type>: <short summary>
 ```
 
-| Type | When to use |
-|------|-------------|
-| `feat` | New feature or behavior |
-| `fix` | Bug fix |
-| `docs` | Documentation only |
+| Type       | When to use                                     |
+| ---------- | ----------------------------------------------- |
+| `feat`     | New feature or behavior                         |
+| `fix`      | Bug fix                                         |
+| `docs`     | Documentation only                              |
 | `refactor` | Code change that is neither a fix nor a feature |
-| `test` | Adding or updating tests |
-| `chore` | Tooling, dependencies, CI |
+| `test`     | Adding or updating tests                        |
+| `chore`    | Tooling, dependencies, CI                       |
 
 Examples:
 
