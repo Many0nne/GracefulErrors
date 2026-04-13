@@ -100,63 +100,63 @@ type AppCode = HttpPresetCode | "PAYMENT_FAILED" | "VALIDATION_ERROR";
 
 ### Core
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `registry` | `ErrorRegistry<TCode>` | — | **Required.** Maps each error code to a UI action and message. |
-| `fallback` | `{ ui, message? }` | — | UI shown when no registry entry matches. `ui` can be `"toast"`, `"modal"`, or `"silent"`. |
-| `requireRegistry` | `boolean` | `false` | When `true`, unregistered codes are silently dropped instead of falling back. |
-| `allowFallback` | `boolean` | `true` | When `false`, the fallback config is ignored and `"toast"` is used as a hard default. |
-| `renderer` | `RendererAdapter` | — | Rendering adapter (Sonner, react-hot-toast, or custom). |
+| Option            | Type                   | Default | Description                                                                               |
+| ----------------- | ---------------------- | ------- | ----------------------------------------------------------------------------------------- |
+| `registry`        | `ErrorRegistry<TCode>` | —       | **Required.** Maps each error code to a UI action and message.                            |
+| `fallback`        | `{ ui, message? }`     | —       | UI shown when no registry entry matches. `ui` can be `"toast"`, `"modal"`, or `"silent"`. |
+| `requireRegistry` | `boolean`              | `false` | When `true`, unregistered codes are silently dropped instead of falling back.             |
+| `allowFallback`   | `boolean`              | `true`  | When `false`, the fallback config is ignored and `"toast"` is used as a hard default.     |
+| `renderer`        | `RendererAdapter`      | —       | Rendering adapter (Sonner, react-hot-toast, or custom).                                   |
 
 ### Normalization
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `normalizer` | `Normalizer` | — | Single custom normalizer. Takes precedence over `normalizers`. |
-| `normalizers` | `Normalizer[]` | — | Pipeline of normalizers applied in order. |
+| Option        | Type           | Default | Description                                                    |
+| ------------- | -------------- | ------- | -------------------------------------------------------------- |
+| `normalizer`  | `Normalizer`   | —       | Single custom normalizer. Takes precedence over `normalizers`. |
+| `normalizers` | `Normalizer[]` | —       | Pipeline of normalizers applied in order.                      |
 
 A normalizer receives the raw input and the current `AppError | null`, and returns an `AppError` or `null`. `builtInNormalizer` is always prepended to the pipeline.
 
 ### Deduplication and throughput
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `dedupeWindow` | `number` (ms) | `300` | Identical errors within this window are silently dropped. |
-| `maxConcurrent` | `number` | `3` | Maximum number of errors rendered at the same time. |
-| `maxQueue` | `number` | `25` | Maximum queue length when `maxConcurrent` is reached. |
-| `aggregation` | `boolean \| { enabled, window? }` | `false` | Suppress repeated errors within a burst window (ms, default `300`). |
-| `fingerprint` | `(error) => string` | `code:status:field` | Custom deduplication key. |
+| Option          | Type                              | Default             | Description                                                         |
+| --------------- | --------------------------------- | ------------------- | ------------------------------------------------------------------- |
+| `dedupeWindow`  | `number` (ms)                     | `300`               | Identical errors within this window are silently dropped.           |
+| `maxConcurrent` | `number`                          | `3`                 | Maximum number of errors rendered at the same time.                 |
+| `maxQueue`      | `number`                          | `25`                | Maximum queue length when `maxConcurrent` is reached.               |
+| `aggregation`   | `boolean \| { enabled, window? }` | `false`             | Suppress repeated errors within a burst window (ms, default `300`). |
+| `fingerprint`   | `(error) => string`               | `code:status:field` | Custom deduplication key.                                           |
 
 ### Routing and transformation
 
-| Option | Type | Description |
-|---|---|---|
-| `routingStrategy` | `RoutingStrategy` | Override UI action before registry lookup. Receives the error, the registry entry (if any), and queue context. Return `null` to use the default. |
-| `transform` | `(error, ctx) => AppError \| SuppressionDecision \| null` | Post-normalization transform. Return `{ suppress: true, reason }` to suppress the error entirely. |
+| Option            | Type                                                      | Description                                                                                                                                      |
+| ----------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `routingStrategy` | `RoutingStrategy`                                         | Override UI action before registry lookup. Receives the error, the registry entry (if any), and queue context. Return `null` to use the default. |
+| `transform`       | `(error, ctx) => AppError \| SuppressionDecision \| null` | Post-normalization transform. Return `{ suppress: true, reason }` to suppress the error entirely.                                                |
 
 ### Lifecycle hooks
 
 All hooks are called synchronously unless noted otherwise.
 
-| Option | Signature | Called when |
-|---|---|---|
-| `onError` | `(raw) => void` | Any input is received by `handle()`. |
-| `onNormalized` | `(error) => void` | Normalization succeeds. |
-| `onRouted` | `(error, action) => void` | Routing resolves to a UI action. |
-| `onFallback` | `(error) => void` | The fallback entry is used. |
-| `onSuppressed` | `(error, reason) => void` | Error is suppressed by `transform`. |
-| `onDropped` | `(error, reason) => void` | Error is deduped, TTL-expired, or queue-overflowed. |
-| `onErrorAsync` | `(error) => Promise<void>` | After routing — async, fires and forgets. |
+| Option         | Signature                  | Called when                                         |
+| -------------- | -------------------------- | --------------------------------------------------- |
+| `onError`      | `(raw) => void`            | Any input is received by `handle()`.                |
+| `onNormalized` | `(error) => void`          | Normalization succeeds.                             |
+| `onRouted`     | `(error, action) => void`  | Routing resolves to a UI action.                    |
+| `onFallback`   | `(error) => void`          | The fallback entry is used.                         |
+| `onSuppressed` | `(error, reason) => void`  | Error is suppressed by `transform`.                 |
+| `onDropped`    | `(error, reason) => void`  | Error is deduped, TTL-expired, or queue-overflowed. |
+| `onErrorAsync` | `(error) => Promise<void>` | After routing — async, fires and forgets.           |
 
 ### Observability and debugging
 
-| Option | Type | Description |
-|---|---|---|
-| `reporters` | `ErrorReporter[]` | Forward errors to Sentry, Datadog, or webhooks. See [Observability reporters](#observability-reporters). |
-| `history` | `HistoryConfig` | Control the in-memory error history. See [Error history](#error-history). |
-| `messageResolver` | `MessageResolver` | Resolve registry message strings through an i18n function. See [i18n](#i18n--localized-messages). |
-| `debug` | `boolean \| { trace? }` | Enable verbose console logging. |
-| `modalDismissTimeoutMs` | `number` | Dev-mode warning delay when a modal is not dismissed (ms). |
+| Option                  | Type                    | Description                                                                                              |
+| ----------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| `reporters`             | `ErrorReporter[]`       | Forward errors to Sentry, Datadog, or webhooks. See [Observability reporters](#observability-reporters). |
+| `history`               | `HistoryConfig`         | Control the in-memory error history. See [Error history](#error-history).                                |
+| `messageResolver`       | `MessageResolver`       | Resolve registry message strings through an i18n function. See [i18n](#i18n--localized-messages).        |
+| `debug`                 | `boolean \| { trace? }` | Enable verbose console logging.                                                                          |
+| `modalDismissTimeoutMs` | `number`                | Dev-mode warning delay when a modal is not dismissed (ms).                                               |
 
 ---
 
@@ -165,7 +165,11 @@ All hooks are called synchronously unless noted otherwise.
 `createFetch` wraps the native `fetch` API and forwards failures to the engine automatically.
 
 ```ts
-import { createErrorEngine, createFetch, createHttpPreset } from "gracefulerrors";
+import {
+  createErrorEngine,
+  createFetch,
+  createHttpPreset,
+} from "gracefulerrors";
 
 const engine = createErrorEngine({
   registry: createHttpPreset(),
@@ -180,11 +184,11 @@ const data = await apiFetch("/api/profile");
 
 ### Modes
 
-| Mode | Behavior |
-|---|---|
-| `"throw"` (default) | Notifies the engine, then re-throws the original error. |
-| `"handle"` | Notifies the engine, then resolves `undefined`. Caller never sees the error. |
-| `"silent"` | Passes through failures without notifying the engine. |
+| Mode                | Behavior                                                                     |
+| ------------------- | ---------------------------------------------------------------------------- |
+| `"throw"` (default) | Notifies the engine, then re-throws the original error.                      |
+| `"handle"`          | Notifies the engine, then resolves `undefined`. Caller never sees the error. |
+| `"silent"`          | Passes through failures without notifying the engine.                        |
 
 ---
 
@@ -202,7 +206,9 @@ const engine = createErrorEngine({ registry: createHttpPreset() });
 const apiClient = axios.create({ baseURL: "/api" });
 
 // Returns an unsubscribe function.
-const unsubscribe = createAxiosInterceptor(apiClient, engine, { mode: "throw" });
+const unsubscribe = createAxiosInterceptor(apiClient, engine, {
+  mode: "throw",
+});
 
 // Later, to remove the interceptor:
 // unsubscribe();
@@ -210,11 +216,11 @@ const unsubscribe = createAxiosInterceptor(apiClient, engine, { mode: "throw" })
 
 ### Modes
 
-| Mode | Behavior |
-|---|---|
+| Mode                | Behavior                                                                         |
+| ------------------- | -------------------------------------------------------------------------------- |
 | `"throw"` (default) | Forwards error to engine, then re-throws so the caller's `.catch()` still fires. |
-| `"handle"` | Forwards error to engine, then resolves `undefined`. |
-| `"silent"` | Passes through without notifying the engine. |
+| `"handle"`          | Forwards error to engine, then resolves `undefined`.                             |
+| `"silent"`          | Passes through without notifying the engine.                                     |
 
 ---
 
@@ -304,11 +310,11 @@ function App() {
 
 ### React exports
 
-| Export | Description |
-|---|---|
-| `ErrorEngineProvider` | Context provider wrapping the engine instance. |
-| `useErrorEngine()` | Returns the engine from context. |
-| `useFieldError(field)` | Subscribes to inline errors for a named field. |
+| Export                    | Description                                                 |
+| ------------------------- | ----------------------------------------------------------- |
+| `ErrorEngineProvider`     | Context provider wrapping the engine instance.              |
+| `useErrorEngine()`        | Returns the engine from context.                            |
+| `useFieldError(field)`    | Subscribes to inline errors for a named field.              |
 | `ErrorBoundaryWithEngine` | Class component error boundary that forwards to the engine. |
 
 ---
@@ -380,13 +386,13 @@ import { ErrorBoundaryWithEngine } from "gracefulerrors/vue";
 
 ### Vue exports
 
-| Export | Description |
-|---|---|
-| `createErrorEnginePlugin(engine)` | Creates a Vue plugin for global registration. |
-| `useErrorEngine()` | Composable returning the engine from injection. |
-| `useFieldError(field)` | Composable returning a `Ref<AppError \| null>` for a named field. |
-| `provideErrorEngine(engine)` | Provide the engine to a component subtree without the global plugin. |
-| `ErrorBoundaryWithEngine` | Vue component for catching render errors. |
+| Export                            | Description                                                          |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `createErrorEnginePlugin(engine)` | Creates a Vue plugin for global registration.                        |
+| `useErrorEngine()`                | Composable returning the engine from injection.                      |
+| `useFieldError(field)`            | Composable returning a `Ref<AppError \| null>` for a named field.    |
+| `provideErrorEngine(engine)`      | Provide the engine to a component subtree without the global plugin. |
+| `ErrorBoundaryWithEngine`         | Vue component for catching render errors.                            |
 
 ---
 
@@ -426,7 +432,10 @@ npm install react-hot-toast
 ```
 
 ```tsx
-import { createHotToastAdapter, HotToaster } from "gracefulerrors/react-hot-toast";
+import {
+  createHotToastAdapter,
+  HotToaster,
+} from "gracefulerrors/react-hot-toast";
 
 const engine = createErrorEngine({
   registry,
@@ -482,7 +491,7 @@ const engine = createErrorEngine({
   registry,
   reporters: [
     createSentryReporter(Sentry, {
-      handledOnly: true,          // skip suppressed / deduped errors
+      handledOnly: true, // skip suppressed / deduped errors
       statusRange: { min: 500 }, // only server errors
     }),
   ],
@@ -521,13 +530,13 @@ const engine = createErrorEngine({
 
 All reporter factories accept the same filter options:
 
-| Option | Type | Description |
-|---|---|---|
-| `ignore` | `TCode[]` | Error codes to skip. |
-| `actions` | `UIAction[]` | Only report errors whose `uiAction` is in this list. |
-| `handledOnly` | `boolean` | Skip suppressed, deduped, and dropped errors. |
-| `statusRange` | `{ min?, max? }` | Only report errors whose HTTP status falls in range. |
-| `filter` | `(error, ctx) => boolean` | Custom predicate — return `false` to skip. |
+| Option        | Type                      | Description                                          |
+| ------------- | ------------------------- | ---------------------------------------------------- |
+| `ignore`      | `TCode[]`                 | Error codes to skip.                                 |
+| `actions`     | `UIAction[]`              | Only report errors whose `uiAction` is in this list. |
+| `handledOnly` | `boolean`                 | Skip suppressed, deduped, and dropped errors.        |
+| `statusRange` | `{ min?, max? }`          | Only report errors whose HTTP status falls in range. |
+| `filter`      | `(error, ctx) => boolean` | Custom predicate — return `false` to skip.           |
 
 ---
 
@@ -639,107 +648,107 @@ mock.reset();
 
 ### Core — `gracefulerrors`
 
-| Export | Description |
-|---|---|
-| `createErrorEngine(config)` | Creates a full client-side engine with deduplication, queuing, and rendering. |
-| `createFetch(engine, options?)` | Returns a `fetch` wrapper that forwards failures to the engine. |
-| `createHttpPreset(overrides?)` | Returns a ready-made registry for common HTTP status codes. |
-| `mergeRegistries(...registries)` | Deep-merges multiple `ErrorRegistry` objects. |
-| `builtInNormalizer` | The default normalizer (handles `Error`, `Response`, Axios errors, plain objects). |
+| Export                           | Description                                                                        |
+| -------------------------------- | ---------------------------------------------------------------------------------- |
+| `createErrorEngine(config)`      | Creates a full client-side engine with deduplication, queuing, and rendering.      |
+| `createFetch(engine, options?)`  | Returns a `fetch` wrapper that forwards failures to the engine.                    |
+| `createHttpPreset(overrides?)`   | Returns a ready-made registry for common HTTP status codes.                        |
+| `mergeRegistries(...registries)` | Deep-merges multiple `ErrorRegistry` objects.                                      |
+| `builtInNormalizer`              | The default normalizer (handles `Error`, `Response`, Axios errors, plain objects). |
 
 ### Server — `gracefulerrors/server`
 
-| Export | Description |
-|---|---|
+| Export                       | Description                               |
+| ---------------------------- | ----------------------------------------- |
 | `createServerEngine(config)` | Timer-free, renderer-free engine for SSR. |
 
 ### React — `gracefulerrors/react`
 
-| Export | Description |
-|---|---|
-| `ErrorEngineProvider` | Context provider. |
-| `useErrorEngine()` | Hook returning the engine from context. |
-| `useFieldError(field)` | Hook subscribing to inline errors for a named field. |
-| `ErrorBoundaryWithEngine` | Error boundary component. |
+| Export                    | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `ErrorEngineProvider`     | Context provider.                                    |
+| `useErrorEngine()`        | Hook returning the engine from context.              |
+| `useFieldError(field)`    | Hook subscribing to inline errors for a named field. |
+| `ErrorBoundaryWithEngine` | Error boundary component.                            |
 
 ### Vue — `gracefulerrors/vue`
 
-| Export | Description |
-|---|---|
-| `createErrorEnginePlugin(engine)` | Vue plugin factory. |
-| `useErrorEngine()` | Composable returning the engine. |
-| `useFieldError(field)` | Composable returning a `Ref<AppError \| null>`. |
-| `provideErrorEngine(engine)` | Provide engine to a subtree. |
-| `ErrorBoundaryWithEngine` | Error boundary component. |
+| Export                            | Description                                     |
+| --------------------------------- | ----------------------------------------------- |
+| `createErrorEnginePlugin(engine)` | Vue plugin factory.                             |
+| `useErrorEngine()`                | Composable returning the engine.                |
+| `useFieldError(field)`            | Composable returning a `Ref<AppError \| null>`. |
+| `provideErrorEngine(engine)`      | Provide engine to a subtree.                    |
+| `ErrorBoundaryWithEngine`         | Error boundary component.                       |
 
 ### Axios — `gracefulerrors/axios`
 
-| Export | Description |
-|---|---|
+| Export                                            | Description                                                       |
+| ------------------------------------------------- | ----------------------------------------------------------------- |
 | `createAxiosInterceptor(axios, engine, options?)` | Installs a response interceptor. Returns an unsubscribe function. |
 
 ### Sonner adapter — `gracefulerrors/sonner`
 
-| Export | Description |
-|---|---|
-| `createSonnerAdapter()` | Returns a `RendererAdapter` backed by Sonner. |
-| `SonnerToaster` | Re-export of Sonner's `<Toaster />` component. |
+| Export                  | Description                                    |
+| ----------------------- | ---------------------------------------------- |
+| `createSonnerAdapter()` | Returns a `RendererAdapter` backed by Sonner.  |
+| `SonnerToaster`         | Re-export of Sonner's `<Toaster />` component. |
 
 ### react-hot-toast adapter — `gracefulerrors/react-hot-toast`
 
-| Export | Description |
-|---|---|
-| `createHotToastAdapter()` | Returns a `RendererAdapter` backed by react-hot-toast. |
-| `HotToaster` | Re-export of react-hot-toast's `<Toaster />` component. |
+| Export                    | Description                                             |
+| ------------------------- | ------------------------------------------------------- |
+| `createHotToastAdapter()` | Returns a `RendererAdapter` backed by react-hot-toast.  |
+| `HotToaster`              | Re-export of react-hot-toast's `<Toaster />` component. |
 
 ### Reporters — `gracefulerrors/reporters`
 
-| Export | Description |
-|---|---|
-| `createSentryReporter(sentry, options?)` | Sentry reporter. |
+| Export                                        | Description           |
+| --------------------------------------------- | --------------------- |
+| `createSentryReporter(sentry, options?)`      | Sentry reporter.      |
 | `createDatadogReporter(datadogRum, options?)` | Datadog RUM reporter. |
-| `createWebhookReporter(options)` | Webhook reporter. |
+| `createWebhookReporter(options)`              | Webhook reporter.     |
 
 ### Testing — `gracefulerrors/testing`
 
-| Export | Description |
-|---|---|
+| Export               | Description                           |
+| -------------------- | ------------------------------------- |
 | `createMockEngine()` | Returns a mock engine for unit tests. |
 
 ### Key types
 
-| Type | Description |
-|---|---|
-| `AppError<TCode, TField>` | Normalized error shape used throughout the engine. |
-| `ErrorEngineConfig<TCode, TField>` | Full config for `createErrorEngine`. |
-| `ServerErrorEngineConfig<TCode, TField>` | Config for `createServerEngine`. |
-| `ErrorRegistry<TCode>` | Map of error codes to registry entries. |
-| `ErrorRegistryEntry<TCode>` | Per-code UI action, message, TTL, and options. |
-| `HandleResult<TCode>` | Return value of `engine.handle()`. |
-| `RendererAdapter` | Interface for custom rendering backends. |
-| `ErrorReporter<TCode>` | Interface for observability reporters. |
-| `Normalizer<TCode, TField>` | Function shape for custom normalizers. |
-| `RoutingStrategy<TCode, TField>` | Function shape for dynamic routing overrides. |
-| `UIAction` | `"toast" \| "modal" \| "inline" \| "silent"` |
-| `HttpPresetCode` | Union of all HTTP preset code strings. |
-| `MessageResolver<TCode>` | i18n resolver function shape. |
-| `HistoryEntry<TCode>` | Single entry in the error history log. |
+| Type                                     | Description                                        |
+| ---------------------------------------- | -------------------------------------------------- |
+| `AppError<TCode, TField>`                | Normalized error shape used throughout the engine. |
+| `ErrorEngineConfig<TCode, TField>`       | Full config for `createErrorEngine`.               |
+| `ServerErrorEngineConfig<TCode, TField>` | Config for `createServerEngine`.                   |
+| `ErrorRegistry<TCode>`                   | Map of error codes to registry entries.            |
+| `ErrorRegistryEntry<TCode>`              | Per-code UI action, message, TTL, and options.     |
+| `HandleResult<TCode>`                    | Return value of `engine.handle()`.                 |
+| `RendererAdapter`                        | Interface for custom rendering backends.           |
+| `ErrorReporter<TCode>`                   | Interface for observability reporters.             |
+| `Normalizer<TCode, TField>`              | Function shape for custom normalizers.             |
+| `RoutingStrategy<TCode, TField>`         | Function shape for dynamic routing overrides.      |
+| `UIAction`                               | `"toast" \| "modal" \| "inline" \| "silent"`       |
+| `HttpPresetCode`                         | Union of all HTTP preset code strings.             |
+| `MessageResolver<TCode>`                 | i18n resolver function shape.                      |
+| `HistoryEntry<TCode>`                    | Single entry in the error history log.             |
 
 ---
 
 ## Entry points
 
-| Import path | Contents |
-|---|---|
-| `gracefulerrors` | Core engine, fetch wrapper, presets, normalizer, types |
-| `gracefulerrors/react` | React provider, hooks, error boundary |
-| `gracefulerrors/vue` | Vue plugin, composables, error boundary |
-| `gracefulerrors/sonner` | Sonner renderer adapter |
-| `gracefulerrors/react-hot-toast` | react-hot-toast renderer adapter |
-| `gracefulerrors/axios` | Axios interceptor |
-| `gracefulerrors/server` | SSR-safe server engine |
-| `gracefulerrors/reporters` | Sentry, Datadog, and webhook reporters |
-| `gracefulerrors/testing` | Mock engine for unit tests |
+| Import path                      | Contents                                               |
+| -------------------------------- | ------------------------------------------------------ |
+| `gracefulerrors`                 | Core engine, fetch wrapper, presets, normalizer, types |
+| `gracefulerrors/react`           | React provider, hooks, error boundary                  |
+| `gracefulerrors/vue`             | Vue plugin, composables, error boundary                |
+| `gracefulerrors/sonner`          | Sonner renderer adapter                                |
+| `gracefulerrors/react-hot-toast` | react-hot-toast renderer adapter                       |
+| `gracefulerrors/axios`           | Axios interceptor                                      |
+| `gracefulerrors/server`          | SSR-safe server engine                                 |
+| `gracefulerrors/reporters`       | Sentry, Datadog, and webhook reporters                 |
+| `gracefulerrors/testing`         | Mock engine for unit tests                             |
 
 ---
 
