@@ -44,6 +44,11 @@
       "types": "./dist/reporters/index.d.ts",
       "import": "./dist/reporters/index.mjs",
       "require": "./dist/reporters/index.cjs"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.mjs",
+      "require": "./dist/server.cjs"
     }
   },
   "main": "./dist/index.cjs",
