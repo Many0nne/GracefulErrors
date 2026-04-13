@@ -287,8 +287,8 @@ describe("history", () => {
     engine.handle({ code: "NOT_FOUND" });
     const hist = engine.getHistory();
     expect(hist).toHaveLength(1);
-    expect(hist[0]!.error.code).toBe("NOT_FOUND");
-    expect(hist[0]!.handled).toBe(true);
+    expect(hist[0].error.code).toBe("NOT_FOUND");
+    expect(hist[0].handled).toBe(true);
   });
 
   it("records suppressed errors in history", () => {
@@ -299,8 +299,8 @@ describe("history", () => {
     engine.handle({ code: "NOT_FOUND" });
     const hist = engine.getHistory();
     expect(hist).toHaveLength(1);
-    expect(hist[0]!.handled).toBe(false);
-    if (!hist[0]!.handled) expect(hist[0]!.reason).toBe("suppressed");
+    expect(hist[0].handled).toBe(false);
+    if (!hist[0].handled) expect(hist[0].reason).toBe("suppressed");
   });
 
   it("respects maxEntries limit (FIFO eviction)", () => {
@@ -310,8 +310,8 @@ describe("history", () => {
     engine.handle({ code: "UNAUTHORIZED" });
     const hist = engine.getHistory();
     expect(hist).toHaveLength(2);
-    expect(hist[0]!.error.code).toBe("SERVER_ERROR");
-    expect(hist[1]!.error.code).toBe("UNAUTHORIZED");
+    expect(hist[0].error.code).toBe("SERVER_ERROR");
+    expect(hist[1].error.code).toBe("UNAUTHORIZED");
   });
 
   it("clearHistory() empties the history", () => {

@@ -190,6 +190,54 @@ export function createServerEngine<
   const historyEntries: HistoryEntry<TCode>[] = [];
 
   // ---------------------------------------------------------------------------
+  // Sub-functions extracted to reduce cognitive complexity of handle()
+  // ---------------------------------------------------------------------------
+
+  function fireOnErrorAsync(normalized: AppError<TCode, TField>): void {
+    if (!config.onErrorAsync) return;
+    Promise.resolve(config.onErrorAsync(normalized)).catch((err) => {
+      if (process.env["NODE_ENV"] === "development") {
+        console.error("[gracefulerrors/server] onErrorAsync rejected:", err);
+      }
+    });
+  }
+
+  function traceHandle(
+    raw: unknown,
+    current: AppError<TCode, TField>,
+    action: UIAction,
+    entry: ErrorRegistryEntryFull<TCode> | undefined,
+  ): void {
+    if (!config.debug) return;
+    const shouldTrace =
+      config.debug === true ||
+      (typeof config.debug === "object" && config.debug.trace === true);
+    if (shouldTrace && process.env["NODE_ENV"] !== "production") {
+      console.log("[gracefulerrors/server trace]", {
+        raw,
+        normalized: current,
+        action,
+        entry: entry ?? buildFallbackEntry(action, config),
+      });
+    }
+  }
+
+  function fireReporters(
+    result: HandleResult<TCode> & { handled: true },
+    fingerprint: string,
+  ): void {
+    if (!config.reporters || config.reporters.length === 0) return;
+    const reporterContext: ReporterContext<TCode> = { result, fingerprint };
+    for (const reporter of config.reporters) {
+      Promise.resolve(reporter(result.error, reporterContext)).catch((err) => {
+        if (process.env["NODE_ENV"] !== "production") {
+          console.error("[gracefulerrors/server] reporter threw:", err);
+        }
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // handle
   // ---------------------------------------------------------------------------
 
@@ -203,32 +251,24 @@ export function createServerEngine<
       config.onError,
     ) as AppError<TCode, TField>;
     safeCall(config.onNormalized, normalized);
-
-    if (config.onErrorAsync) {
-      Promise.resolve(config.onErrorAsync(normalized)).catch((err) => {
-        if (process.env["NODE_ENV"] === "development") {
-          console.error("[gracefulerrors/server] onErrorAsync rejected:", err);
-        }
-      });
-    }
+    fireOnErrorAsync(normalized);
 
     // Steps 4–5: transform → suppression check
     const transformResult = safeTransform(config.transform, normalized);
     let current: AppError<TCode, TField>;
-    if (transformResult !== null) {
-      if (isSuppressionDecision(transformResult)) {
-        safeCall(config.onSuppressed, normalized, transformResult.reason);
-        const result: HandleResult<TCode> = {
-          handled: false,
-          reason: "suppressed",
-          error: normalized,
-        };
-        recordHistory(result);
-        return result;
-      }
-      current = transformResult;
-    } else {
+    if (transformResult === null) {
       current = normalized;
+    } else if (isSuppressionDecision(transformResult)) {
+      safeCall(config.onSuppressed, normalized, transformResult.reason);
+      const result: HandleResult<TCode> = {
+        handled: false,
+        reason: "suppressed",
+        error: normalized,
+      };
+      recordHistory(result);
+      return result;
+    } else {
+      current = transformResult;
     }
 
     // Step 6: fingerprint
@@ -262,26 +302,10 @@ export function createServerEngine<
       resolvedEntry: entry,
     }) as UIAction;
 
-    // Step 8: routing hooks
-    if (!entry && !config.requireRegistry) {
-      safeCall(config.onFallback, current);
-    }
+    // Step 8: routing hooks + debug trace
+    if (!entry && !config.requireRegistry) safeCall(config.onFallback, current);
     safeCall(config.onRouted, current, action);
-
-    // Debug trace
-    if (config.debug) {
-      const shouldTrace =
-        config.debug === true ||
-        (typeof config.debug === "object" && config.debug.trace === true);
-      if (shouldTrace && process.env["NODE_ENV"] !== "production") {
-        console.log("[gracefulerrors/server trace]", {
-          raw,
-          normalized: current,
-          action,
-          entry: entry ?? buildFallbackEntry(action, config),
-        });
-      }
-    }
+    traceHandle(raw, current, action, entry);
 
     // Step 9: build result + run reporters
     const result: HandleResult<TCode> = {
@@ -290,20 +314,7 @@ export function createServerEngine<
       uiAction: action,
     };
     recordHistory(result);
-
-    if (config.reporters && config.reporters.length > 0) {
-      const reporterContext: ReporterContext<TCode> = { result, fingerprint };
-      for (const reporter of config.reporters) {
-        Promise.resolve(reporter(result.error, reporterContext)).catch(
-          (err) => {
-            if (process.env["NODE_ENV"] !== "production") {
-              console.error("[gracefulerrors/server] reporter threw:", err);
-            }
-          },
-        );
-      }
-    }
-
+    fireReporters(result, fingerprint);
     return result;
   }
 
