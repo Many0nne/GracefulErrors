@@ -13,18 +13,32 @@ export interface ErrorKey<
   field?: TField;
 }
 
-// Normalized error — the engine's internal contract
+/**
+ * Normalized error — the engine's internal contract.
+ *
+ * All raw inputs (Axios errors, `Response` objects, plain objects, native `Error`s)
+ * are reduced to this shape by the normalizer pipeline before routing, deduplication,
+ * and rendering take place.
+ *
+ * @template TCode - Union of application-defined error code strings.
+ * @template TField - Union of field names used in inline/form validation errors.
+ */
 export interface AppError<
   TCode extends string = string,
   TField extends string = string,
 > {
+  /** Stable string identifier used for registry lookup, routing, and deduplication. */
   code: TCode | SystemErrorCode;
+  /** HTTP status code, when applicable. */
   status?: number;
+  /** Human-readable message. May be overridden by the registry entry. */
   message?: string;
   context?: {
+    /** Field name for inline/form validation errors. */
     field?: TField;
     [key: string]: unknown;
   };
+  /** Original raw input preserved for debugging and custom normalizers. */
   raw?: unknown;
 }
 
@@ -150,6 +164,14 @@ export interface ErrorEngine<TCode extends string = string> {
   clearHistory(): void;
 }
 
+/**
+ * Return value of `engine.handle()`.
+ *
+ * When `handled` is `true` the error was routed and (if a renderer is configured)
+ * rendered. When `false`, the error was intentionally skipped — inspect `reason`
+ * to distinguish between suppression (transform/registry guard), deduplication
+ * (same fingerprint within the deduplication window), and drops (queue overflow).
+ */
 export type HandleResult<TCode extends string = string> =
   | { handled: true; uiAction: UIAction; error: AppError<TCode> }
   | {
@@ -318,7 +340,16 @@ export interface ServerErrorEngineConfig<
 // Engine config type — history is optional; see HistoryConfig for defaults
 // ---------------------------------------------------------------------------
 
-// Engine config type — history is optional; see HistoryConfig for defaults
+/**
+ * Configuration object for `createErrorEngine`.
+ *
+ * All fields are optional except `registry`. The engine applies sensible defaults
+ * for numeric limits (`maxConcurrent`, `maxQueue`, `dedupeWindow`) and history
+ * (`maxEntries` is 20 in development, 0 in production).
+ *
+ * @template TCode - Union of application-defined error code strings.
+ * @template TField - Union of field names used in inline/form validation errors.
+ */
 export interface ErrorEngineConfig<
   TCode extends string = string,
   TField extends string = string,
@@ -327,7 +358,12 @@ export interface ErrorEngineConfig<
   requireRegistry?: boolean;
   // Default: true. When false, configured fallback is ignored and engine uses 'toast' as hard default.
   allowFallback?: boolean;
-  // 'inline' intentionally excluded — inline errors require context.field to be meaningful.
+  /**
+   * UI shown when no registry entry matches the error code.
+   *
+   * `'inline'` is intentionally excluded: inline errors are field-level and require
+   * `error.context.field` to know where to render — a global fallback cannot provide that.
+   */
   fallback?: {
     ui: "toast" | "modal" | "silent";
     message?: string;
