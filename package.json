@@ -3,6 +3,31 @@
   "version": "0.1.2",
   "description": "Transform technical errors into consistent, user-friendly experiences",
   "license": "MIT",
+  "author": "Many0nne",
+  "homepage": "https://github.com/Many0nne/GracefulErrors#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Many0nne/GracefulErrors.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Many0nne/GracefulErrors/issues"
+  },
+  "keywords": [
+    "error",
+    "errors",
+    "error-handling",
+    "user-friendly",
+    "toast",
+    "react",
+    "vue",
+    "axios",
+    "sonner",
+    "react-hot-toast",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -66,7 +91,8 @@
     "test:types": "tsd",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
-    "prepare": "husky"
+    "prepare": "husky",
+    "prepublishOnly": "npm run build && npm test"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
