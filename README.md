@@ -25,6 +25,7 @@ npm install gracefulerrors
 - [i18n — localized messages](#i18n--localized-messages)
 - [Error history](#error-history)
 - [Testing](#testing)
+- [Examples](#examples)
 - [API reference](#api-reference)
 - [Entry points](#entry-points)
 
@@ -640,6 +641,34 @@ mock.handle({ code: "AUTH_FAILED", message: "401" });
 expect(mock.calls).toHaveLength(1);
 expect(mock.calls[0].code).toBe("AUTH_FAILED");
 mock.reset();
+```
+
+---
+
+## Examples
+
+The `examples/` directory contains runnable Vite apps that wire up `gracefulerrors` in a real project.
+
+| Directory                              | Stack           | Adapter                 |
+| -------------------------------------- | --------------- | ----------------------- |
+| [`examples/react/`](./examples/react/) | Vite + React 18 | Sonner                  |
+| [`examples/vue/`](./examples/vue/)     | Vite + Vue 3    | Sonner (via vue-sonner) |
+
+Each example demonstrates engine creation with the HTTP preset, `createFetch` error forwarding, and toast/modal notifications triggered by real HTTP error responses.
+
+**Prerequisites** — build the library once from the repo root before running any example:
+
+```bash
+npm install && npm run build
+```
+
+**Run an example:**
+
+```bash
+cd examples/react   # or examples/vue
+npm install
+npm run dev
+# open http://localhost:5173
 ```
 
 ---
